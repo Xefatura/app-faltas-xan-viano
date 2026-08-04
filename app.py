@@ -324,13 +324,11 @@ if menu == "📋 Rexistro de Ausencia":
         
     lista_profes = [p["nombre"] for p in profesores_data]
     
-    # Inicialización de claves no session_state para poder limpar o formulario
-    if "input_horas" not in st.session_state:
-        st.session_state["input_horas"] = "1"
-    if "input_obs" not in st.session_state:
-        st.session_state["input_obs"] = ""
-    if "input_data" not in st.session_state:
-        st.session_state["input_data"] = date.today()
+    # Control de versión para reiniciar os widgets sen erro
+    if "form_version" not in st.session_state:
+        st.session_state.form_version = 0
+
+    version = st.session_state.form_version
 
     col1, col2 = st.columns(2)
     
@@ -338,33 +336,38 @@ if menu == "📋 Rexistro de Ausencia":
         docente_sel = st.selectbox(
             "Docente", 
             lista_profes, 
+            key=f"docente_{version}",
             help="Selecciona o nome do docente que solicita a ausencia."
         )
         data_falta = st.date_input(
             "Data da ausencia", 
-            key="input_data",
+            value=date.today(),
+            key=f"data_{version}",
             help="Data na que se produce a falta. Se se entrega con posterioridade, selecciona a data orixinal da ausencia para manter o cómputo retroactivo correcto."
         )
         motivo_sel = st.selectbox(
             "Artigo / Tipo de Permiso", 
             list(ARTIGOS_DOG.keys()),
+            key=f"motivo_{version}",
             help="Selecciona o artigo normativo correspondente segundo o DOG 30/2016 e 41/2016."
         )
 
     with col2:
         horas_input = st.text_input(
             "Horas lectivas afectadas", 
-            key="input_horas",
+            value="1",
+            key=f"horas_{version}",
             help="Indica o número de horas lectivas das que se ausenta o docente nesa xornada."
         )
         es_lectivo = st.checkbox(
             "É día lectivo?", 
             value=True, 
+            key=f"lectivo_{version}",
             help="Marcar se a ausencia se produce nun día con actividade lectiva (Especialmente relevante para o Artigo 15)."
         )
         observaciones = st.text_area(
             "Observacións / Xustificación", 
-            key="input_obs",
+            key=f"obs_{version}",
             help="Anotacións internas da Xefatura de Estudos (p. ex., nº de rexistro, xustificante achegado, etc.)."
         )
 
@@ -422,11 +425,8 @@ if menu == "📋 Rexistro de Ausencia":
         res = supabase.table("partes").insert(nuevo_parte).execute()
         if res.data:
             st.cache_data.clear()
-            # Reiniciamos o estado dos campos do formulario a valores por defecto
-            st.session_state["input_horas"] = "1"
-            st.session_state["input_obs"] = ""
-            st.session_state["input_data"] = date.today()
-            
+            # Incrementamos a versión para forzar a Streamlit a renderizar un formulario totalmente novo e limpo
+            st.session_state.form_version += 1
             st.success("✅ Ausencia rexistrada e gardada correctamente na base de datos!")
             st.rerun()
         else:
