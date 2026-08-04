@@ -545,7 +545,14 @@ elif menu == "👨‍🏫 Profesores e Horarios":
         st.write("")
         if st.button("Gardar Email"):
             supabase.table("profesores").update({"email": nuevo_email}).eq("nombre", prof_selected).execute()
+            
+            # --- LIMPEZA DE CACHÉ ENGADIDA ---
+            st.cache_data.clear()
+            get_profesores_list.clear() if "get_profesores_list" in globals() else None
+            
             st.success("Email actualizado!")
+            st.rerun()
+            
     with col_e3:
         st.write("")
         st.write("")
@@ -554,7 +561,13 @@ elif menu == "👨‍🏫 Profesores e Horarios":
             supabase.table("horarios").delete().eq("profesor", prof_selected).execute()
             # 2. Borramos o docente da lista de activos
             supabase.table("profesores").delete().eq("nombre", prof_selected).execute()
-            # Os partes de faltas históricos en "partes" NON se tocan
+            
+            # --- LIMPEZA DE CACHÉ ENGADIDA ---
+            st.cache_data.clear()
+            if "get_profesores_list" in globals():
+                get_profesores_list.clear()
+            if "form_version" in st.session_state:
+                st.session_state.form_version += 1
             
             st.success(f"Docente '{prof_selected}' dado de baixa. O seu histórico conservase intacto.")
             st.rerun()
