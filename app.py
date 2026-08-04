@@ -324,6 +324,14 @@ if menu == "📋 Rexistro de Ausencia":
         
     lista_profes = [p["nombre"] for p in profesores_data]
     
+    # Inicialización de claves no session_state para poder limpar o formulario
+    if "input_horas" not in st.session_state:
+        st.session_state["input_horas"] = "1"
+    if "input_obs" not in st.session_state:
+        st.session_state["input_obs"] = ""
+    if "input_data" not in st.session_state:
+        st.session_state["input_data"] = date.today()
+
     col1, col2 = st.columns(2)
     
     with col1:
@@ -334,7 +342,7 @@ if menu == "📋 Rexistro de Ausencia":
         )
         data_falta = st.date_input(
             "Data da ausencia", 
-            value=date.today(),
+            key="input_data",
             help="Data na que se produce a falta. Se se entrega con posterioridade, selecciona a data orixinal da ausencia para manter o cómputo retroactivo correcto."
         )
         motivo_sel = st.selectbox(
@@ -346,7 +354,7 @@ if menu == "📋 Rexistro de Ausencia":
     with col2:
         horas_input = st.text_input(
             "Horas lectivas afectadas", 
-            value="1", 
+            key="input_horas",
             help="Indica o número de horas lectivas das que se ausenta o docente nesa xornada."
         )
         es_lectivo = st.checkbox(
@@ -356,6 +364,7 @@ if menu == "📋 Rexistro de Ausencia":
         )
         observaciones = st.text_area(
             "Observacións / Xustificación", 
+            key="input_obs",
             help="Anotacións internas da Xefatura de Estudos (p. ex., nº de rexistro, xustificante achegado, etc.)."
         )
 
@@ -412,10 +421,16 @@ if menu == "📋 Rexistro de Ausencia":
         }
         res = supabase.table("partes").insert(nuevo_parte).execute()
         if res.data:
+            st.cache_data.clear()
+            # Reiniciamos o estado dos campos do formulario a valores por defecto
+            st.session_state["input_horas"] = "1"
+            st.session_state["input_obs"] = ""
+            st.session_state["input_data"] = date.today()
+            
             st.success("✅ Ausencia rexistrada e gardada correctamente na base de datos!")
+            st.rerun()
         else:
             st.error("Erro ao gardar os datos en Supabase.")
-
 # -----------------------------------------------------------------------------
 # PESTANA 2: RESUMO MENSUAL E ACUMULADOS
 # -----------------------------------------------------------------------------
