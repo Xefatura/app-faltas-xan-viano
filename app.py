@@ -665,8 +665,15 @@ elif menu == "⚙️ Configuración e Carga":
                         supabase.table("profesores").insert({"nombre": nom, "email": email_val}).execute()
                         cnt += 1
                         
+                # --- LIMPEZA DE CACHÉ E REINICIO ---
                 st.cache_data.clear()
+                if "get_profesores_list" in globals():
+                    get_profesores_list.clear()
+                if "form_version" in st.session_state:
+                    st.session_state.form_version += 1
+                
                 st.success(f"Importados {cnt} docentes correctamente a Supabase!")
+                st.rerun()
         except Exception as e:
             st.error(f"Erro ao procesar o arquivo: {e}")
 
@@ -691,7 +698,11 @@ elif menu == "⚙️ Configuración e Carga":
             if st.button("Importar Horarios a Supabase"):
                 records = df_h.to_dict(orient="records")
                 supabase.table("horarios").insert(records).execute()
+                
+                # --- LIMPEZA DE CACHÉ E REINICIO ---
                 st.cache_data.clear()
+                
                 st.success("Horarios importados e gardados con éxito!")
+                st.rerun()
         except Exception as e:
             st.error(f"Erro ao cargar os horarios: {e}")
