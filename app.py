@@ -460,6 +460,24 @@ elif menu == "📊 Resumo Mensual e Acumulados":
             df[["profesor", "fecha", "motivo", "horas", "acumulado_anterior", "total_acumulado", "observaciones"]],
             use_container_width=True
         )
+
+        st.markdown("---")
+        st.subheader("⚙️ Xestionar / Eliminar Rexistros")
+        
+        # Crear selector cos rexistros amosados na táboa
+        opcions_registros = {
+            f"ID {row['id']} - {row['profesor']} ({row['fecha']}) - {row['motivo']}": row['id']
+            for _, row in df.iterrows()
+        }
+        
+        falta_seleccionada = st.selectbox("Selecciona un rexistro para eliminar:", list(opcions_registros.keys()))
+        id_para_eliminar = opcions_registros[falta_seleccionada]
+        
+        if st.button("🗑️ Eliminar Rexistro da Base de Datos"):
+            supabase.table("ausencias").delete().eq("id", id_para_eliminar).execute()
+            st.cache_data.clear()
+            st.success("✅ Rexistro eliminado correctamente de Supabase.")
+            st.rerun()
         
         st.markdown("---")
         st.subheader("📄 Exportación de Informes Oficials")
