@@ -573,7 +573,7 @@ elif menu == "⚙️ Configuración e Carga":
     archivo_profes = st.file_uploader(
         "Cargar arquivo de docentes (.xlsx ou .csv)", 
         type=["xlsx", "csv"],
-        help="O arquivo debe ter polo menos unha columna chamada 'nombre' ou 'Nombre'. Podes incluír tamén unha columna 'email'."
+        help="O arquivo debe conter unha columna co nome dos docentes e opcionalmente o email."
     )
     
     if archivo_profes:
@@ -588,12 +588,32 @@ elif menu == "⚙️ Configuración e Carga":
             
             if st.button("Importar Docentes a Supabase"):
                 cnt = 0
-                for _, row in df_p.iterrows():
-                    nom = str(row.get("nombre", row.get("Nombre", ""))).strip()
-                    em = str(row.get("email", row.get("Email", ""))).strip()
-                    if nom:
-                        supabase.table("profesores").insert({"nombre": nom, "email": em if em else None}).execute()
+                
+                # Limpar filas/columnas completamente baleiras
+                df_clean = df_p.dropna(how='all').dropna(how='all', axis=1)
+                
+                # Se a primeira fila ten os encabezados reais (caso de filas baleiras superiores)
+                cols_lower = [str(col).strip().lower() for col in df_clean.columns]
+                if not any('nombre' in c or 'docente' in c for c in cols_lower):
+                    df_clean.columns = df_clean.iloc[0]
+                    df_clean = df_clean[1:].reset_index(drop=True)
+
+                for _, row in df_clean.iterrows():
+                    nom = ""
+                    em = ""
+                    for col in row.index:
+                        col_str = str(col).strip().lower()
+                        if "nombre" in col_str or "docente" in col_str or "profesor" in col_str:
+                            nom = str(row[col]).strip()
+                        elif "email" in col_str or "correo" in col_str:
+                            em = str(row[col]).strip()
+                    
+                    if nom and nom.lower() != 'nan' and nom.lower() != 'nombre':
+                        email_val = em if (em and em.lower() != 'nan') else None
+                        supabase.table("profesores").insert({"nombre": nom, "email": email_val}).execute()
                         cnt += 1
+                        
+                st.cache_data.clear()
                 st.success(f"Importados {cnt} docentes correctamente a Supabase!")
         except Exception as e:
             st.error(f"Erro ao procesar o arquivo: {e}")
@@ -619,6 +639,7 @@ elif menu == "⚙️ Configuración e Carga":
             if st.button("Importar Horarios a Supabase"):
                 records = df_h.to_dict(orient="records")
                 supabase.table("horarios").insert(records).execute()
+                st.cache_data.clear()
                 st.success("Horarios importados e gardados con éxito!")
         except Exception as e:
             st.error(f"Erro ao cargar os horarios: {e}")
