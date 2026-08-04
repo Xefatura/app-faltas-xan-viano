@@ -23,18 +23,28 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilo CSS personalizado
+# Estilo CSS personalizado avanzado (Tarxetas e Paleta Escura Corporativa)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
     
-    html, body, [class*="css"] {
+    /* Fondo xeral e tipografía */
+    .main {
+        background-color: #f8fafc;
         font-family: 'Open Sans', sans-serif;
-        color: #1E293B;
     }
     
+    /* Barra lateral corporativa */
+    [data-testid="stSidebar"] {
+        background-color: #0f2e46 !important;
+    }
+    [data-testid="stSidebar"] * {
+        color: #ffffff !important;
+    }
+    
+    /* Cabeceira principal */
     .main-header {
-        background-color: #00529B;
+        background-color: #0f2e46;
         color: white;
         padding: 1.5rem;
         border-radius: 8px;
@@ -48,31 +58,70 @@ st.markdown("""
         font-weight: 700;
     }
     .main-header p {
-        color: #E2E8F0;
+        color: #e2e8f0;
         margin: 0.3rem 0 0 0;
         font-size: 0.95rem;
     }
     
-    .stButton>button {
-        background-color: #00529B;
-        color: white;
-        border-radius: 6px;
-        border: none;
-        font-weight: 600;
-        padding: 0.5rem 1rem;
-        transition: all 0.2s;
-    }
-    .stButton>button:hover {
-        background-color: #003B70;
-        color: white;
+    /* Contedores con aspecto de Tarxeta / Cadro enmarcado */
+    div[data-testid="stVerticalBlock"] > div[style*="flex-direction: column"] > div {
+        background-color: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 1.2rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }
     
-    div[data-testid="stMetricValue"] {
-        color: #00529B;
+    /* Cabeceiras dentro das seccións */
+    h1, h2, h3 {
+        color: #0f2e46 !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Reestilizado das métricas (Cadros de saldo/acumulados) */
+    [data-testid="stMetric"] {
+        background-color: #f1f5f9 !important;
+        border-left: 5px solid #0f2e46 !important;
+        border-radius: 6px !important;
+        padding: 10px 15px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: #475569 !important;
+        font-weight: 600 !important;
+        font-size: 0.85rem !important;
+    }
+    
+    [data-testid="stMetricValue"] {
+        color: #0f2e46 !important;
+        font-weight: 800 !important;
+    }
+    
+    /* Botóns principais estilizados */
+    .stButton > button {
+        background-color: #0f2e46 !important;
+        color: #ffffff !important;
+        border-radius: 6px !important;
+        border: none !important;
+        font-weight: 600 !important;
+        padding: 0.5rem 1.2rem !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #1e40af !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+    }
+    
+    /* Caixas de texto e selectores */
+    .stSelectbox, .stTextInput, .stDateInput, .stNumberInput {
+        background-color: #ffffff;
+        border-radius: 6px;
     }
     </style>
 """, unsafe_allow_html=True)
-
 # -----------------------------------------------------------------------------
 # INICIALIZACIÓN DE SUPABASE
 # -----------------------------------------------------------------------------
