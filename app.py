@@ -326,12 +326,12 @@ if menu == "📋 Rexistro de Ausencia":
         col_a, col_b, col_c = st.columns(3)
         col_a.metric("Acumulado anterior", f"{horas_acumuladas} h")
         col_b.metric("Solicitadas hoxe", f"{horas_novas} h")
-        col_c.metric("Total previsto", f"{total_previsto} / 35 h")
+        col_c.metric("Total previsto", f"{total_previsto} / 24 h")
         
-        if total_previsto > 35:
-            st.error(f"⚠️ ATENCIÓN: Superase o límite anual de 35 horas do Artigo 33! (Total: {total_previsto} h)")
-        elif total_previsto >= 30:
-            st.warning(f"⚡ ADVERTENCIA: O docente está próximo ao límite de 35 horas (Total: {total_previsto} h)")
+        if total_previsto > 24:
+            st.error(f"⚠️ ATENCIÓN: Superase o límite anual de 24 horas do Artigo 33! (Total: {total_previsto} h)")
+        elif total_previsto >= 20:
+            st.warning(f"⚡ ADVERTENCIA: O docente está próximo ao límite de 24 horas (Total: {total_previsto} h)")
         else:
             st.success("✅ Solicitude dentro do marxe permitido para o Artigo 33.")
 
