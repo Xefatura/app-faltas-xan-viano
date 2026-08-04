@@ -476,7 +476,7 @@ elif menu == "📊 Resumo Mensual e Acumulados":
             df[["profesor", "fecha", "motivo", "horas", "acumulado_anterior", "total_acumulado", "observaciones"]],
             use_container_width=True
         )
- 
+
         st.markdown("---")
         st.subheader("⚙️ Xestionar / Eliminar Rexistros")
         
@@ -493,10 +493,16 @@ elif menu == "📊 Resumo Mensual e Acumulados":
             # 1. Borrado directo en Supabase por clave primaria ID
             supabase.table("partes").delete().eq("id", id_para_eliminar).execute()
             
-            # 2. Borrado de toda a memoria caché de Streamlit (claves e cálculo de acumulados)
+            # 2. Borrado de toda a memoria caché de Streamlit e limpeza da función de saldos
             st.cache_data.clear()
+            if "get_acumulado_artigo" in globals():
+                get_acumulado_artigo.clear()
             
-            # 3. Mensaxe de éxito e reinicio inmediato da interface
+            # 3. Incremento da versión do formulario para reiniciar a Pestana 1
+            if "form_version" in st.session_state:
+                st.session_state.form_version += 1
+            
+            # 4. Mensaxe de éxito e reinicio inmediato da interface
             st.success("✅ Rexistro eliminado correctamente de Supabase.")
             st.rerun()
         
