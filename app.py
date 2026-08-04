@@ -379,14 +379,15 @@ if menu == "📋 Rexistro de Ausencia":
     if "Art. 33" in motivo_sel:
         horas_acumuladas = get_acumulado_artigo(docente_sel, motivo_sel, data_falta, es_horas=True)
         try:
-            horas_novas = float(horas_input)
-        except:
+            horas_novas = float(horas_input) if horas_input.strip() != "" else 0.0
+        except ValueError:
             horas_novas = 0.0
+            
         total_previsto = horas_acumuladas + horas_novas
         
         col_a, col_b, col_c = st.columns(3)
-        col_a.metric("Acumulado anterior", f"{horas_acumuladas} h")
-        col_b.metric("Solicitadas hoxe", f"{horas_novas} h")
+        col_a.metric("Acumulado xa gardado", f"{horas_acumuladas} h")
+        col_b.metric("Pendente neste formulario", f"{horas_novas} h")
         col_c.metric("Total previsto", f"{total_previsto} / 24 h")
         
         if total_previsto > 24:
@@ -425,7 +426,7 @@ if menu == "📋 Rexistro de Ausencia":
         res = supabase.table("partes").insert(nuevo_parte).execute()
         if res.data:
             st.cache_data.clear()
-            # Incrementamos a versión para forzar a Streamlit a renderizar un formulario totalmente novo e limpo
+            get_acumulado_artigo.clear()  # Limpa a memoria do cálculo de saldos
             st.session_state.form_version += 1
             st.success("✅ Ausencia rexistrada e gardada correctamente na base de datos!")
             st.rerun()
