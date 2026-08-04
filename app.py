@@ -510,7 +510,7 @@ elif menu == "👨‍🏫 Profesores e Horarios":
     prof_info = next((p for p in profesores_data if p["nombre"] == prof_selected), None)
     email_prof = prof_info.get("email", "") if prof_info else ""
     
-    col_e1, col_e2 = st.columns([2, 1])
+    col_e1, col_e2, col_e3 = st.columns([2, 1, 1])
     with col_e1:
         nuevo_email = st.text_input("Email do docente", value=email_prof if email_prof else "")
     with col_e2:
@@ -519,6 +519,18 @@ elif menu == "👨‍🏫 Profesores e Horarios":
         if st.button("Gardar Email"):
             supabase.table("profesores").update({"email": nuevo_email}).eq("nombre", prof_selected).execute()
             st.success("Email actualizado!")
+    with col_e3:
+        st.write("")
+        st.write("")
+        if st.button("🗑️ Dar de baixa Docente", type="primary"):
+            # 1. Borramos o seu horario actual (libera o cuadrante)
+            supabase.table("horarios").delete().eq("profesor", prof_selected).execute()
+            # 2. Borramos o docente da lista de activos
+            supabase.table("profesores").delete().eq("nombre", prof_selected).execute()
+            # Os partes de faltas históricos en "partes" NON se tocan
+            
+            st.success(f"Docente '{prof_selected}' dado de baixa. O seu histórico conservase intacto.")
+            st.rerun()
 
     st.markdown("---")
     st.subheader(f"Horario de {prof_selected}")
