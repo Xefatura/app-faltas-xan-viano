@@ -474,7 +474,7 @@ elif menu == "📊 Resumo Mensual e Acumulados":
         id_para_eliminar = opcions_registros[falta_seleccionada]
         
         if st.button("🗑️ Eliminar Rexistro da Base de Datos"):
-            supabase.table("ausencias").delete().eq("id", id_para_eliminar).execute()
+            supabase.table("partes").delete().eq("id", id_para_eliminar).execute()
             st.cache_data.clear()
             st.success("✅ Rexistro eliminado correctamente de Supabase.")
             st.rerun()
