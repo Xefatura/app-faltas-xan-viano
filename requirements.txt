@@ -1,4 +1,5 @@
 streamlit
-pandas
 supabase
-st-supabase-connection
+reportlab
+pandas
+openpyxl
