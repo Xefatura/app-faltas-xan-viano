@@ -441,7 +441,7 @@ elif menu == "📊 Resumo Mensual e Acumulados":
     mes_sel = col_m.selectbox("Seleccionar Mes", list(range(1, 13)), index=datetime.now().month - 1)
     ano_sel = col_a.number_input("Ano", value=datetime.now().year, step=1)
     
-    # Obtener partes del mes
+    # Rango de datas do mes seleccionado
     start_date = f"{ano_sel}-{mes_sel:02d}-01"
     if mes_sel == 12:
         end_date = f"{ano_sel+1}-01-01"
@@ -464,7 +464,7 @@ elif menu == "📊 Resumo Mensual e Acumulados":
             acum_anteriores.append(ac_ant)
             try:
                 val_actual = float(row["horas"]) if es_h else 1.0
-            except:
+            except (ValueError, TypeError):
                 val_actual = 0.0
             totales_acum.append(ac_ant + val_actual)
             
@@ -475,11 +475,11 @@ elif menu == "📊 Resumo Mensual e Acumulados":
             df[["profesor", "fecha", "motivo", "horas", "acumulado_anterior", "total_acumulado", "observaciones"]],
             use_container_width=True
         )
-
+ 
         st.markdown("---")
         st.subheader("⚙️ Xestionar / Eliminar Rexistros")
         
-        # Crear selector cos rexistros amosados na táboa
+        # Opcions do selector
         opcions_registros = {
             f"ID {row['id']} - {row['profesor']} ({row['fecha']}) - {row['motivo']}": row['id']
             for _, row in df.iterrows()
@@ -488,9 +488,14 @@ elif menu == "📊 Resumo Mensual e Acumulados":
         falta_seleccionada = st.selectbox("Selecciona un rexistro para eliminar:", list(opcions_registros.keys()))
         id_para_eliminar = opcions_registros[falta_seleccionada]
         
-        if st.button("🗑️ Eliminar Rexistro da Base de Datos"):
+        if st.button("🗑️ Eliminar Rexistro da Base de Datos", use_container_width=True):
+            # 1. Borrado directo en Supabase por clave primaria ID
             supabase.table("partes").delete().eq("id", id_para_eliminar).execute()
+            
+            # 2. Borrado de toda a memoria caché de Streamlit (claves e cálculo de acumulados)
             st.cache_data.clear()
+            
+            # 3. Mensaxe de éxito e reinicio inmediato da interface
             st.success("✅ Rexistro eliminado correctamente de Supabase.")
             st.rerun()
         
