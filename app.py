@@ -353,14 +353,14 @@ if menu == "📋 Rexistro de Ausencia":
         col_a, col_b, col_c = st.columns(3)
         col_a.metric("Acumulado xa gardado", f"{horas_acumuladas:.2f} h")
         col_b.metric("Pendente neste formulario", f"{horas_novas:.2f} h")
-        col_c.metric("Total previsto", f"{total_previsto:.2f} / 35 h")
-        
-        if total_previsto > 35:
-            st.error(f"🚫 **ALERTA CRÍTICA:** Superase o límite anual de 35 horas do Artigo 33!")
-        elif total_previsto >= 30:
-            st.warning(f"⚡ **ADVERTENCIA:** Próximo ao límite de 35 horas.")
+        col_c.metric("Total previsto", f"{total_previsto:.2f} / 24 h")
+
+        if total_previsto > 24:
+            st.error(f"⛔ **SÚPERASE O LÍMITE ANUAL:** Con este rexistro alcanzas {total_previsto:.2f} h. O máximo permitido polo Artigo 33 son 24.00 h.")
+        elif total_previsto >= 20:
+            st.warning(f"⚠️ **ATENCIÓN (PRÓXIMO AO LÍMITE):** Con este rexistro sumarás {total_previsto:.2f} h das 24.00 h anuais permitidas.")
         else:
-            st.success("✅ Dentro do marxe permitido para o Artigo 33.")
+            st.success(f"✅ Dispoñible: Réstanse {(24 - total_previsto):.2f} h antes de acadar o límite anual de 24 h.")
 
     elif "15" in motivo_sel or "Art. 15" in str(motivo_final):
         # Recuperamos o número de días/solicitudes xa gardadas previamente para este artigo
