@@ -344,6 +344,12 @@ menu = st.sidebar.radio(
     ["📋 Rexistro de Ausencia", "📊 Resumo Mensual e Acumulados", "👨‍🏫 Profesores e Horarios", "⚙️ Configuración e Carga"]
 )
 
+# Botón para pechar a sesión ao final da barra lateral
+st.sidebar.markdown("---")
+if st.sidebar.button("🚪 Pechar sesión", use_container_width=True):
+    st.session_state.authenticated = False
+    st.rerun()
+
 # -----------------------------------------------------------------------------
 # PESTANA 1: REXISTRO DE AUSENCIA
 # -----------------------------------------------------------------------------
