@@ -357,20 +357,27 @@ if menu == "📋 Rexistro de Ausencia":
             st.success("✅ Dentro do marxe permitido para o Artigo 33.")
 
     elif "15" in motivo_sel or "Art. 15" in str(motivo_final):
-        dias_lectivos_acum = get_acumulado_artigo(docente_sel, motivo_final, data_falta, es_horas=False)
+        # Recuperamos o número de días/solicitudes xa gardadas previamente para este artigo
+        dias_acumulados = get_acumulado_artigo(docente_sel, motivo_final, data_falta, es_horas=False)
+        
+        # A nova solicitude sumará 1 día se é día lectivo
         incremento = 1 if es_lectivo else 0
-        acum_previo = dias_lectivos_acum
-        total_lectivos = int(dias_lectivos_acum + incremento)
-        total_previsto = float(total_lectivos)
+        total_dias = int(dias_acumulados + incremento)
         
-        col_a, col_b = st.columns(2)
-        col_a.metric("Días lectivos xa consumidos", f"{int(dias_lectivos_acum)} días")
-        col_b.metric("Lectivos previstos", f"{total_lectivos} / 2 días")
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Días lectivos xa consumidos", f"{int(dias_acumulados)} d")
+        col_b.metric("Horas lectivas deste día", f"{horas_novas:.2f} h")
+        col_c.metric("Total días previstos", f"{total_dias} / 2 d")
         
-        if total_lectivos > 2:
-            st.error("⛔ **ALERTA CRÍTICA:** Excédese o máximo de 2 días lectivos permitidos.")
+        if not es_lectivo:
+            st.info("ℹ️ **Día non lectivo:** Rexístranse as observacións pero non computa para o límite de 2 días do Artigo 15.")
         else:
-            st.success("✅ Solicitude dentro do límite.")
+            if total_dias == 1:
+                st.warning(f"⚠️ **1º DÍA CONSUMIDO (AMARELO):** Con este rexistro ({horas_novas:.2f} h lectivas) consúmese o primeiro dos 2 días permitidos no Artigo 15.")
+            elif total_dias >= 2:
+                st.error(f"⛔ **2º DÍA ALCANZADO / EXCEDIDO (VERMELLO):** Con este rexistro ({horas_novas:.2f} h lectivas) alcánzase ou supérase o límite máximo de 2 días do Artigo 15.")
+            else:
+                st.success("✅ Sen días lectivos consumidos previamente neste artigo.")
     else:
         st.info(f"ℹ️ O permiso **'{motivo_final}'** rexistrarase sen restrición de horas automatizada.")
 
