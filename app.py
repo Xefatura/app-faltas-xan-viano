@@ -228,27 +228,48 @@ ARTIGOS_DOG = {
 # FUNCIÓNS AUXILIARES E LÓXICA DE NEGOCIO
 # -----------------------------------------------------------------------------
 def get_profesores_list():
-    res = supabase.table("profesores").select("*").order("nombre").execute()
-    return res.data
+    """Obtén a lista de profesores ordenada de forma segura."""
+    try:
+        res = supabase.table("profesores").select("*").order("nombre").execute()
+        return res.data if res and res.data else []
+    except Exception as e:
+        st.error(f"Erro ao obter a lista de profesores: {e}")
+        return []
 
 def get_acumulado_artigo(docente_nombre, artigo, fecha_limite, es_horas=True):
-    """Calcula o acumulado acumulado antes dunha data determinada (para retroactividae)."""
-    res = supabase.table("partes").select("*").eq("profesor", docente_nombre).eq("motivo", artigo).lt("fecha", fecha_limite.strftime("%Y-%m-%d")).execute()
-    total = 0.0
-    for r in res.data:
-        if es_horas:
-            try:
-                total += float(r.get("horas", 0))
-            except:
-                pass
+    """Calcula o acumulado anterior a unha data determinada (para retroactividade)."""
+    try:
+        # Aseguramos formato texto YYYY-MM-DD para a data
+        if hasattr(fecha_limite, "strftime"):
+            fecha_str = fecha_limite.strftime("%Y-%m-%d")
         else:
-            total += 1.0
-    return total
+            fecha_str = str(fecha_limite)
+
+        res = supabase.table("partes").select("*")\
+            .eq("profesor", docente_nombre)\
+            .eq("motivo", artigo)\
+            .lt("fecha", fecha_str)\
+            .execute()
+
+        total = 0.0
+        if res and res.data:
+            for r in res.data:
+                if es_horas:
+                    try:
+                        total += float(r.get("horas", 0))
+                    except (ValueError, TypeError):
+                        pass
+                else:
+                    total += 1.0
+        return total
+    except Exception as e:
+        st.warning(f"Non se puido calcular o acumulado previo: {e}")
+        return 0.0
 
 def enviar_email_resumo(email_destino, docente, contenido_pdf, mes_nome):
     """Envía o resumo por correo electrónico se está configurado o SMTP nos secrets."""
-    if "SMTP_SERVER" not in st.secrets:
-        return False, "Servidor SMTP non configurado nos Secrets."
+    if "SMTP_SERVER" not in st.secrets or "SMTP_USER" not in st.secrets:
+        return False, "Servidor SMTP non configurado correctamente nos Secrets."
     try:
         msg = MIMEMultipart()
         msg['From'] = st.secrets["SMTP_USER"]
@@ -304,7 +325,7 @@ def generar_pdf_mensual(mes_num, ano_num, df_partes):
     elements.append(Paragraph(f"PARTE MENSUAL DE FALTAS E LICENZAS - MES: {mes_num}/{ano_num}", subtitle_style))
     elements.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#00529B"), spaceAfter=15))
     
-    if df_partes.empty:
+    if df_partes is None or df_partes.empty:
         elements.append(Paragraph("Non se rexistraron ausencias nin permisos neste período.", styles['Normal']))
     else:
         # Táboa de datos
@@ -335,7 +356,13 @@ def generar_pdf_mensual(mes_num, ano_num, df_partes):
         elements.append(t)
         
     elements.append(Spacer(1, 30))
-    elements.append(Paragraph(f"Ferrol, a {datetime.now().strftime('%d de %B de %Y')}", styles['Normal']))
+    
+    # Data actual formateada
+    hoxe = datetime.now()
+    meses_galego = ["xaneiro", "febreiro", "marzo", "abril", "maio", "xuño", "xullo", "agosto", "setembro", "outubro", "novembro", "decembro"]
+    data_str = f"{hoxe.day} de {meses_galego[hoxe.month - 1]} de {hoxe.year}"
+    
+    elements.append(Paragraph(f"Ferrol, a {data_str}", styles['Normal']))
     elements.append(Spacer(1, 15))
     elements.append(Paragraph("<b>O Xefe de Estudos</b>", styles['Normal']))
     
