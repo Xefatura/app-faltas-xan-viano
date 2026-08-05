@@ -380,15 +380,14 @@ if menu == "📋 Rexistro de Ausencia":
         if not motivo_final or str(motivo_final).strip() == "":
             st.error("Especifica un artigo ou motivo válido.")
         else:
+            # FIX: Soamente enviamos campos que existen na táboa 'partes' de Supabase
             nuevo_parte = {
                 "profesor": docente_sel,
                 "fecha": data_falta.strftime("%Y-%m-%d"),
                 "horas": horas_novas,
                 "motivo": motivo_final,
                 "es_lectivo": es_lectivo,
-                "observaciones": observaciones,
-                "acumulado_anterior": acum_previo,
-                "total_acumulado": total_previsto
+                "observaciones": observaciones
             }
             try:
                 res = supabase.table("partes").insert(nuevo_parte).execute()
@@ -423,9 +422,32 @@ elif menu == "📊 Resumo Mensual e Acumulados":
     if partes_mes:
         df = pd.DataFrame(partes_mes)
         
-        for col in ["id", "profesor", "fecha", "motivo", "horas", "observaciones", "acumulado_anterior", "total_acumulado"]:
+        # Calculamos os acumulados dinamicamente para cada rexistro da táboa
+        acum_anteriores = []
+        totales_acum = []
+        
+        for _, r in df.iterrows():
+            prof = r.get("profesor", "")
+            mot = r.get("motivo", "")
+            fec_str = r.get("fecha", "")
+            fec_obj = datetime.strptime(fec_str, "%Y-%m-%d").date() if isinstance(fec_str, str) else fec_str
+            es_h = "15" not in str(mot)
+            
+            ant = get_acumulado_artigo(prof, mot, fec_obj, es_horas=es_h)
+            try:
+                val_actual = float(r.get("horas", 0)) if es_h else (1.0 if r.get("es_lectivo", True) else 0.0)
+            except Exception:
+                val_actual = 0.0
+            
+            acum_anteriores.append(ant)
+            totales_acum.append(ant + val_actual)
+
+        df["acumulado_anterior"] = acum_anteriores
+        df["total_acumulado"] = totales_acum
+
+        for col in ["id", "profesor", "fecha", "motivo", "horas", "observaciones"]:
             if col not in df.columns:
-                df[col] = 0.0 if "acumulado" in col or col == "horas" else ""
+                df[col] = 0.0 if col == "horas" else ""
 
         df_display = df[["profesor", "fecha", "motivo", "horas", "acumulado_anterior", "total_acumulado", "observaciones"]].copy()
         df_display.columns = ["Docente", "Data", "Artigo / Motivo", "Horas", "Acum. Anterior", "Total Acumulado", "Observacións"]
