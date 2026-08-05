@@ -23,13 +23,13 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilo CSS personalizado avanzado (Tarxetas e Paleta Escura Corporativa)
+# Estilo CSS personalizado seguro (Corporativo Xunta)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
     
     /* Fondo xeral e tipografía */
-    .main {
+    .stApp {
         background-color: #f8fafc;
         font-family: 'Open Sans', sans-serif;
     }
@@ -63,16 +63,6 @@ st.markdown("""
         font-size: 0.95rem;
     }
     
-    /* Contedores con aspecto de Tarxeta / Cadro enmarcado */
-    div[data-testid="stVerticalBlock"] > div[style*="flex-direction: column"] > div {
-        background-color: #ffffff;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        padding: 1.2rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-    }
-    
     /* Cabeceiras dentro das seccións */
     h1, h2, h3 {
         color: #0f2e46 !important;
@@ -81,10 +71,11 @@ st.markdown("""
     
     /* Reestilizado das métricas (Cadros de saldo/acumulados) */
     [data-testid="stMetric"] {
-        background-color: #f1f5f9 !important;
+        background-color: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
         border-left: 5px solid #0f2e46 !important;
         border-radius: 6px !important;
-        padding: 10px 15px !important;
+        padding: 12px 15px !important;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     
@@ -114,14 +105,8 @@ st.markdown("""
         background-color: #1e40af !important;
         box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
     }
-    
-    /* Caixas de texto e selectores */
-    .stSelectbox, .stTextInput, .stDateInput, .stNumberInput {
-        background-color: #ffffff;
-        border-radius: 6px;
-    }
 
-    /* Estilo específico para o botón na barra lateral */
+    /* Estilo específico para o botón na barra lateral (Pechar Sesión) */
     [data-testid="stSidebar"] .stButton > button {
         background-color: #ffffff !important;
         color: #0f2e46 !important;
