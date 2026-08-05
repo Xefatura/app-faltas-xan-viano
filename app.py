@@ -31,8 +31,11 @@ st.markdown("""
         font-family: 'Open Sans', sans-serif;
     }
     
+    /* MODIFICADO: Fixar ancho da barra lateral a 330px para que o menú quede nunha soa liña */
     [data-testid="stSidebar"] {
         background-color: #0f2e46 !important;
+        min-width: 330px !important;
+        max-width: 330px !important;
     }
     [data-testid="stSidebar"] * {
         color: #ffffff !important;
@@ -98,14 +101,19 @@ st.markdown("""
         box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
     }
 
+    /* MODIFICADO: Estilo do botón de pechar sesión (vermello permanente e texto branco visible) */
     [data-testid="stSidebar"] .stButton > button {
-        background-color: #ffffff !important;
-        color: #0f2e46 !important;
-        border: 1px solid #cbd5e1 !important;
-        width: 100%;
+        background-color: #c0392b !important;
+        color: #ffffff !important;
+        border: 1px solid #962d22 !important;
+        font-weight: bold !important;
+        width: 100% !important;
+    }
+    [data-testid="stSidebar"] .stButton > button * {
+        color: #ffffff !important;
     }
     [data-testid="stSidebar"] .stButton > button:hover {
-        background-color: #ef4444 !important;
+        background-color: #e74c3c !important;
         color: #ffffff !important;
     }
     </style>
