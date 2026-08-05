@@ -31,12 +31,18 @@ st.markdown("""
         font-family: 'Open Sans', sans-serif;
     }
     
-    /* MODIFICADO: Fixar ancho da barra lateral a 330px para que o menú quede nunha soa liña */
+    /* MODIFICADO: Ancho fixo e espazado interno (padding) para evitar cortes no menú */
     [data-testid="stSidebar"] {
         background-color: #0f2e46 !important;
-        min-width: 330px !important;
-        max-width: 330px !important;
+        min-width: 340px !important;
+        max-width: 340px !important;
     }
+
+    [data-testid="stSidebar"] > div:first-child {
+        padding-left: 1.2rem !important;
+        padding-right: 1rem !important;
+    }
+
     [data-testid="stSidebar"] * {
         color: #ffffff !important;
     }
@@ -101,7 +107,7 @@ st.markdown("""
         box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
     }
 
-    /* MODIFICADO: Estilo do botón de pechar sesión (vermello permanente e texto branco visible) */
+    /* Estilo do botón de pechar sesión (vermello permanente e ben aliñado) */
     [data-testid="stSidebar"] .stButton > button {
         background-color: #c0392b !important;
         color: #ffffff !important;
