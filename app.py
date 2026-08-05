@@ -138,22 +138,55 @@ except Exception as e:
     st.stop()
 
 # -----------------------------------------------------------------------------
-# CONTROL DE ACCESO (AUTENTICACIÓN)
+# CONTROL DE ACCESO (AUTENTICACIÓN E PORTADA INSTITUCIONAL)
 # -----------------------------------------------------------------------------
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
+    # 1. CABECEIRA PRINCIPAL
     st.markdown("""
-        <div class="main-header">
-            <h1>🎼 Conservatorio Profesional de Música Xan Viaño</h1>
-            <p>Sistema de Xestión de Ausencias e Licenzas do Profesorado</p>
+        <div class="main-header" style="text-align: center;">
+            <h1>🎼 Conservatorio Profesional de Música "Xan Viaño"</h1>
+            <p>Sistema de Xestión de Ausencias e Licenzas do Profesorado | Xefatura de Estudos</p>
         </div>
     """, unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # 2. SECCIÓN VISUAL (Imaxe temática + Resumo de servizos)
+    col_img, col_info = st.columns([1.1, 1])
+    
+    with col_img:
+        st.image(
+            "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80",
+            caption="CMUS Xan Viaño - Ferrol",
+            use_container_width=True
+        )
+
+    with col_info:
+        st.markdown(
+            """
+            <div style="background-color: #ffffff; border-left: 5px solid #0f2e46; padding: 20px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                <h3 style="margin-top: 0; color: #0f2e46;">Portal de Xestión Interna</h3>
+                <p style="color: #334155; font-size: 0.95rem; line-height: 1.6;">
+                    Benvido/a ao sistema dixital do centro para o rexistro automatizado de partes de falta e control normativo.
+                </p>
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
+                <ul style="color: #475569; font-size: 0.9rem; line-height: 1.7; padding-left: 20px;">
+                    <li><strong>Artigo 33:</strong> Cómputo automatizado da bolsa de horas.</li>
+                    <li><strong>Artigo 15:</strong> Control de días lectivos con avisos de cores.</li>
+                    <li><strong>Informes:</strong> Emisión e exportación de partes oficiais.</li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 3. FORMULARIO DE ACCESO
+    col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        st.subheader("Acceso á Xefatura de Estudos")
+        st.subheader("🔒 Acceso á Xefatura de Estudos")
         user_input = st.text_input("Usuario", help="Usuario de acceso proporcionado pola dirección/xefatura.")
         pass_input = st.text_input("Contrasinal", type="password", help="Contrasinal de seguridade.")
         
@@ -163,8 +196,8 @@ if not st.session_state.authenticated:
                 st.rerun()
             else:
                 st.error("Usuario ou contrasinal incorrectos.")
+    
     st.stop()
-
 # -----------------------------------------------------------------------------
 # DICCIONARIO DE ARTIGOS E NORMATIVA
 # -----------------------------------------------------------------------------
