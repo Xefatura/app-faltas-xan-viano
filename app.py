@@ -682,93 +682,135 @@ elif menu == "👨‍🏫 Profesores e Horarios":
     
     profesores_data = get_profesores_list()
     if not profesores_data:
-        st.warning("Non hai profesores rexistrados.")
+        st.warning("Non hai profesores rexistrados na base de datos.")
         st.stop()
         
-    prof_nombres = [p["nombre"] for p in profesores_data]
+    prof_nombres = sorted([p["nombre"] for p in profesores_data])
     prof_selected = st.selectbox("Seleccionar Docente para consultar/editar", prof_nombres)
     
-    # Obtener email del profe
+    # Obter email actual do docente
     prof_info = next((p for p in profesores_data if p["nombre"] == prof_selected), None)
     email_prof = prof_info.get("email", "") if prof_info else ""
     
-    col_e1, col_e2, col_e3 = st.columns([2, 1, 1])
+    col_e1, col_e2 = st.columns([3, 1])
     with col_e1:
-        nuevo_email = st.text_input("Email do docente", value=email_prof if email_prof else "")
+        nuevo_email = st.text_input("Email do docente", value=email_prof if email_prof else "", placeholder="exemplo@edu.xunta.gal")
     with col_e2:
-        st.write("")
-        st.write("")
-        if st.button("Gardar Email"):
-            supabase.table("profesores").update({"email": nuevo_email}).eq("nombre", prof_selected).execute()
-            
-            # --- LIMPEZA DE CACHÉ ENGADIDA ---
-            st.cache_data.clear()
-            get_profesores_list.clear() if "get_profesores_list" in globals() else None
-            
-            st.success("Email actualizado!")
-            st.rerun()
-            
-    with col_e3:
-        st.write("")
-        st.write("")
-        if st.button("🗑️ Dar de baixa Docente", type="primary"):
-            # 1. Borramos o seu horario actual (libera o cuadrante)
-            supabase.table("horarios").delete().eq("profesor", prof_selected).execute()
-            # 2. Borramos o docente da lista de activos
-            supabase.table("profesores").delete().eq("nombre", prof_selected).execute()
-            
-            # --- LIMPEZA DE CACHÉ ENGADIDA ---
-            st.cache_data.clear()
-            if "get_profesores_list" in globals():
-                get_profesores_list.clear()
-            if "form_version" in st.session_state:
-                st.session_state.form_version += 1
-            
-            st.success(f"Docente '{prof_selected}' dado de baixa. O seu histórico conservase intacto.")
-            st.rerun()
-
+        st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("💾 Gardar Email", use_container_width=True):
+            try:
+                supabase.table("profesores").update({"email": nuevo_email}).eq("nombre", prof_selected).execute()
+                st.cache_data.clear()
+                st.success("Email actualizado correctamente!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao actualizar o email: {e}")
+                
     st.markdown("---")
-    st.subheader(f"Horario de {prof_selected}")
     
-    # Cargar horario
-    res_h = supabase.table("horarios").select("*").eq("profesor", prof_selected).execute()
-    horario_data = res_h.data
+    # -------------------------------------------------------------------------
+    # HORARIO DO DOCENTE
+    # -------------------------------------------------------------------------
+    st.subheader(f"📅 Horario de {prof_selected}")
+    
+    try:
+        res_h = supabase.table("horarios").select("*").eq("profesor", prof_selected).execute()
+        horario_data = res_h.data
+    except Exception as e:
+        st.error(f"Erro ao consultar horarios: {e}")
+        horario_data = []
     
     if horario_data:
         df_h = pd.DataFrame(horario_data)
-        st.dataframe(df_h[["dia_semana", "hora_inicio", "hora_fin", "materia", "grupo"]], use_container_width=True)
         
-        if st.button("🗑️ Eliminar Horario deste Docente"):
-            supabase.table("horarios").delete().eq("profesor", prof_selected).execute()
-            st.success("Horario eliminado correctamente.")
-            st.rerun()
+        # Filtramos e renomeamos as columnas máis relevantes para a vista
+        cols_mostrar = [c for c in ["dia_semana", "hora_inicio", "hora_fin", "materia", "grupo"] if c in df_h.columns]
+        st.dataframe(df_h[cols_mostrar], use_container_width=True)
+        
+        if st.button("🗑️ Eliminar Horario deste Docente", use_container_width=True):
+            try:
+                supabase.table("horarios").delete().eq("profesor", prof_selected).execute()
+                st.cache_data.clear()
+                st.success("Horario eliminado correctamente.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao eliminar o horario: {e}")
     else:
         st.info("Este docente non ten un horario cargado na base de datos.")
 
     st.markdown("---")
+    
+    # -------------------------------------------------------------------------
+    # RESUMO INDIVIDUAL E ENVÍO DE CORREO
+    # -------------------------------------------------------------------------
     st.subheader("✉️ Envío de Resumo Individual ao Docente")
     
-    res_p = supabase.table("partes").select("*").eq("profesor", prof_selected).execute()
-    if res_p.data:
-        df_ind = pd.DataFrame(res_p.data)
-        pdf_ind = generar_pdf_mensual(datetime.now().month, datetime.now().year, df_ind)
+    try:
+        res_p = supabase.table("partes").select("*").eq("profesor", prof_selected).order("fecha", desc=True).execute()
+        partes_docente = res_p.data
+    except Exception as e:
+        st.error(f"Erro ao obter o histórico de ausencias: {e}")
+        partes_docente = []
+
+    if partes_docente:
+        df_ind = pd.DataFrame(partes_docente)
         
-        st.download_button(
-            "📥 Descargar Resumo PDF do Docente",
-            data=pdf_ind,
-            file_name=f"Resumo_{prof_selected}.pdf",
-            mime="application/pdf"
-        )
+        col_pdf, col_mail = st.columns(2)
         
-        if st.button("📧 Enviar Resumo por Correo Electrónico"):
-            if not nuevo_email:
-                st.error("O docente non ten un correo electrónico gardado.")
-            else:
-                ok, msg = enviar_email_resumo(nuevo_email, prof_selected, pdf_ind, f"{datetime.now().month}/{datetime.now().year}")
-                if ok:
-                    st.success(f"Correo enviado con éxito a {nuevo_email}!")
+        with col_pdf:
+            try:
+                pdf_ind = generar_pdf_mensual(datetime.now().month, datetime.now().year, df_ind)
+                st.download_button(
+                    "📥 Descargar Resumo PDF do Docente",
+                    data=pdf_ind,
+                    file_name=f"Resumo_{prof_selected.replace(' ', '_')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            except Exception as e:
+                st.error(f"Non se puido xerar o PDF individual: {e}")
+                pdf_ind = None
+        
+        with col_mail:
+            if st.button("📧 Enviar Resumo por Correo Electrónico", use_container_width=True):
+                destinatario = nuevo_email.strip() if nuevo_email else email_prof.strip()
+                if not destinatario:
+                    st.error("O docente non ten un correo electrónico asignado. Asigna un email arriba primeiro.")
+                elif not pdf_ind:
+                    st.error("Non se puido xerar o documento PDF para adxuntar.")
                 else:
-                    st.error(f"Non se puido enviar o correo: {msg}")
+                    ok, msg = enviar_email_resumo(destinatario, prof_selected, pdf_ind, f"{datetime.now().month}/{datetime.now().year}")
+                    if ok:
+                        st.success(f"Correo enviado con éxito a {destinatario}!")
+                    else:
+                        st.error(f"Non se puido enviar o correo: {msg}")
+    else:
+        st.info("Este docente non ten ausencias rexistradas no histórico.")
+
+    # -------------------------------------------------------------------------
+    # ZONA DE PERIGO: BAIXA DO DOCENTE
+    # -------------------------------------------------------------------------
+    st.markdown("---")
+    with st.expander("⚠️ Zona de Perigo: Dar de baixa Docente"):
+        st.write("Esta acción borrará o docente da lista activa e liberará o seu horario. O seu histórico de ausencias conservarase na base de datos.")
+        confirmar = st.checkbox(f"Confirmo que quero dar de baixa a {prof_selected}")
+        
+        if st.button("🗑️ Confirmar e Dar de baixa Docente", type="primary", disabled=not confirmar):
+            try:
+                # 1. Borramos o seu horario actual (libera o cuadrante)
+                supabase.table("horarios").delete().eq("profesor", prof_selected).execute()
+                # 2. Borramos o docente da lista de activos
+                supabase.table("profesores").delete().eq("nombre", prof_selected).execute()
+                
+                # Limpeza de caché e actualización de versión
+                st.cache_data.clear()
+                if "form_version" in st.session_state:
+                    st.session_state.form_version += 1
+                
+                st.success(f"Docente '{prof_selected}' dado de baixa con éxito.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao procesar a baixa: {e}")
 
 # -----------------------------------------------------------------------------
 # PESTANA 4: CONFIGURACIÓN E CARGA
@@ -776,10 +818,14 @@ elif menu == "👨‍🏫 Profesores e Horarios":
 elif menu == "⚙️ Configuración e Carga":
     st.subheader("Carga Masiva de Datos e Configuración")
     
+    # -------------------------------------------------------------------------
+    # 1. CARGAR LISTA DE DOCENTES
+    # -------------------------------------------------------------------------
     st.markdown("### 1. Cargar Lista de Docentes")
     archivo_profes = st.file_uploader(
         "Cargar arquivo de docentes (.xlsx ou .csv)", 
         type=["xlsx", "csv"],
+        key="uploader_profes",
         help="O arquivo debe conter unha columna co nome dos docentes e opcionalmente o email."
     )
     
@@ -793,15 +839,15 @@ elif menu == "⚙️ Configuración e Carga":
             st.write("Vista previa do arquivo:")
             st.dataframe(df_p.head(), use_container_width=True)
             
-            if st.button("Importar Docentes a Supabase"):
+            if st.button("Importar Docentes a Supabase", use_container_width=True):
                 cnt = 0
                 
                 # Limpar filas/columnas completamente baleiras
                 df_clean = df_p.dropna(how='all').dropna(how='all', axis=1)
                 
-                # Se a primeira fila ten os encabezados reais (caso de filas baleiras superiores)
+                # axuste se a primeira fila contén os encabezados reais
                 cols_lower = [str(col).strip().lower() for col in df_clean.columns]
-                if not any('nombre' in c or 'docente' in c for c in cols_lower):
+                if not any('nombre' in c or 'docente' in c or 'profesor' in c for c in cols_lower) and len(df_clean) > 0:
                     df_clean.columns = df_clean.iloc[0]
                     df_clean = df_clean[1:].reset_index(drop=True)
 
@@ -817,27 +863,40 @@ elif menu == "⚙️ Configuración e Carga":
                     
                     if nom and nom.lower() != 'nan' and nom.lower() != 'nombre':
                         email_val = em if (em and em.lower() != 'nan') else None
-                        supabase.table("profesores").insert({"nombre": nom, "email": email_val}).execute()
-                        cnt += 1
                         
-                # --- LIMPEZA DE CACHÉ E REINICIO ---
+                        # Inserción con UPSERT para evitar duplicados
+                        try:
+                            supabase.table("profesores").upsert(
+                                {"nombre": nom, "email": email_val}, 
+                                on_conflict="nombre"
+                            ).execute()
+                            cnt += 1
+                        except Exception:
+                            # Se a táboa non ten restrición UNIQUE en 'nombre', usamos insert seguro
+                            supabase.table("profesores").insert({"nombre": nom, "email": email_val}).execute()
+                            cnt += 1
+                        
+                # Limpeza de caché xeral e reinicio
                 st.cache_data.clear()
-                if "get_profesores_list" in globals():
-                    get_profesores_list.clear()
                 if "form_version" in st.session_state:
                     st.session_state.form_version += 1
                 
-                st.success(f"Importados {cnt} docentes correctamente a Supabase!")
+                st.success(f"Importados/actualizados {cnt} docentes correctamente en Supabase!")
                 st.rerun()
         except Exception as e:
-            st.error(f"Erro ao procesar o arquivo: {e}")
+            st.error(f"Erro ao procesar o arquivo de docentes: {e}")
 
     st.markdown("---")
+    
+    # -------------------------------------------------------------------------
+    # 2. CARGAR HORARIOS MASIVOS
+    # -------------------------------------------------------------------------
     st.markdown("### 2. Cargar Horarios Masivos")
     archivo_horarios = st.file_uploader(
         "Cargar arquivo de horarios (.xlsx ou .csv)", 
         type=["xlsx", "csv"],
-        help="O arquivo debe ter as seguintes columnas exactas: 'profesor', 'dia_semana', 'hora_inicio', 'hora_fin', 'materia', 'grupo'."
+        key="uploader_horarios",
+        help="O arquivo debe ter as seguintes columnas: 'profesor', 'dia_semana', 'hora_inicio', 'hora_fin', 'materia', 'grupo'."
     )
     
     if archivo_horarios:
@@ -850,14 +909,23 @@ elif menu == "⚙️ Configuración e Carga":
             st.write("Vista previa dos horarios:")
             st.dataframe(df_h.head(), use_container_width=True)
             
-            if st.button("Importar Horarios a Supabase"):
-                records = df_h.to_dict(orient="records")
-                supabase.table("horarios").insert(records).execute()
+            if st.button("Importar Horarios a Supabase", use_container_width=True):
+                # Limpeza de valores nulos/NaN para evitar erros de JSON en Supabase
+                df_h_clean = df_h.where(pd.notnull(df_h), None)
+                records = df_h_clean.to_dict(orient="records")
                 
-                # --- LIMPEZA DE CACHÉ E REINICIO ---
+                # Inserción por lotes (chunks) de 100 para evitar saturar o payload
+                chunk_size = 100
+                total_inserted = 0
+                for i in range(0, len(records), chunk_size):
+                    chunk = records[i:i + chunk_size]
+                    supabase.table("horarios").insert(chunk).execute()
+                    total_inserted += len(chunk)
+                
+                # Limpeza de caché e reinicio
                 st.cache_data.clear()
-                
-                st.success("Horarios importados e gardados con éxito!")
+                st.success(f"Horarios importados e gardados con éxito ({total_inserted} rexistros)!")
                 st.rerun()
+            
         except Exception as e:
-            st.error(f"Erro ao cargar os horarios: {e}")
+            st.error(f"Erro ao cargar o arquivo de horarios: {e}")
