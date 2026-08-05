@@ -120,8 +120,21 @@ st.markdown("""
         background-color: #ffffff;
         border-radius: 6px;
     }
+
+    /* Estilo específico para o botón na barra lateral */
+    [data-testid="stSidebar"] .stButton > button {
+        background-color: #ffffff !important;
+        color: #0f2e46 !important;
+        border: 1px solid #cbd5e1 !important;
+        width: 100%;
+    }
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background-color: #ef4444 !important;
+        color: #ffffff !important;
+    }
     </style>
 """, unsafe_allow_html=True)
+
 # -----------------------------------------------------------------------------
 # INICIALIZACIÓN DE SUPABASE
 # -----------------------------------------------------------------------------
