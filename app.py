@@ -487,10 +487,19 @@ if menu == "📋 Rexistro de Ausencia":
     st.markdown("---")
     st.subheader("🔍 Comprobación Automática de Saldo")
     
+    # Tratamento seguro das horas introducidas
+    try:
+        horas_novas = float(horas_input.replace(",", "."))
+    except (ValueError, AttributeError):
+        horas_novas = 0.0
+
+    acum_previo = 0.0
+    total_previsto = 0.0
+
     # Control Artigo 33 (Enfermidade común / Asistencia médica / Horas)
-    if "Art. 33" in motivo_sel:
-        horas_acumuladas = get_acumulado_artigo(docente_sel, motivo_sel, data_falta, es_horas=True)
-        horas_novas = float(horas_input) if horas_input else 0.0
+    if "33" in motivo_sel or "Art. 33" in motivo_final:
+        horas_acumuladas = get_acumulado_artigo(docente_sel, motivo_final, data_falta, es_horas=True)
+        acum_previo = horas_acumuladas
         total_previsto = horas_acumuladas + horas_novas
         
         col_a, col_b, col_c = st.columns(3)
@@ -506,10 +515,12 @@ if menu == "📋 Rexistro de Ausencia":
             st.success("✅ Solicitude dentro do marxe permitido para o Artigo 33.")
 
     # Control Artigo 15 (Asuntos Propios / Particulares)
-    elif "Art. 15" in motivo_sel:
-        dias_lectivos_acum = get_acumulado_artigo(docente_sel, motivo_sel, data_falta, es_horas=False)
+    elif "15" in motivo_sel or "Art. 15" in motivo_final:
+        dias_lectivos_acum = get_acumulado_artigo(docente_sel, motivo_final, data_falta, es_horas=False)
         incremento = 1 if es_lectivo else 0
+        acum_previo = dias_lectivos_acum
         total_lectivos = int(dias_lectivos_acum + incremento)
+        total_previsto = float(total_lectivos)
         
         col_a, col_b = st.columns(2)
         col_a.metric("Días lectivos xa consumidos", f"{int(dias_lectivos_acum)} días")
@@ -523,25 +534,42 @@ if menu == "📋 Rexistro de Ausencia":
             st.error(f"⛔ **ALERTA CRÍTICA - LÍMITE SUPERADO:** O docente xa consumiu os {int(dias_lectivos_acum)} días lectivos permitidos do Art. 15. A normativa prohibe conceder máis de 2 días lectivos por curso.")
         else:
             st.success("✅ Solicitude en día non lectivo (sen afectación ao cómputo de 2 días).")
+    else:
+        # Outros artigos sen límites automatizados
+        st.info(f"ℹ️ O artigo ou motivo **'{motivo_final}'** rexistrarase sen restricións de bolsa de horas automática.")
 
     st.markdown("---")
+    
+    # -------------------------------------------------------------------------
+    # BOTÓN DE GARDADO EN SUPABASE
+    # -------------------------------------------------------------------------
     if st.button("💾 Gardar Ausencia en Supabase", use_container_width=True):
-        nuevo_parte = {
-            "profesor": docente_sel,
-            "fecha": data_falta.strftime("%Y-%m-%d"),
-            "horas": horas_input,
-            "motivo": motivo_sel,
-            "observaciones": observaciones
-        }
-        res = supabase.table("partes").insert(nuevo_parte).execute()
-        if res.data:
-            st.cache_data.clear()
-            get_acumulado_artigo.clear()  # Limpa a memoria do cálculo de saldos
-            st.session_state.form_version += 1
-            st.success("✅ Ausencia rexistrada e gardada correctamente na base de datos!")
-            st.rerun()
+        if not motivo_final or motivo_final.strip() == "":
+            st.error("Por favor, especifica un artigo ou motivo válido antes de gardar.")
         else:
-            st.error("Erro ao gardar os datos en Supabase.")
+            nuevo_parte = {
+                "profesor": docente_sel,
+                "fecha": data_falta.strftime("%Y-%m-%d"),
+                "horas": horas_novas,
+                "motivo": motivo_final,
+                "es_lectivo": es_lectivo,
+                "observaciones": observaciones,
+                "acumulado_anterior": acum_previo,
+                "total_acumulado": total_previsto
+            }
+            
+            try:
+                res = supabase.table("partes").insert(nuevo_parte).execute()
+                if res.data:
+                    st.cache_data.clear()  # Limpeza de caché xeral de Streamlit
+                    st.session_state.form_version += 1
+                    st.success("✅ Ausencia rexistrada e gardada correctamente na base de datos!")
+                    st.rerun()
+                else:
+                    st.error("Erro ao gardar os datos en Supabase.")
+            except Exception as e:
+                st.error(f"Ocorreu un erro ao conectar con Supabase: {e}")
+                
 # -----------------------------------------------------------------------------
 # PESTANA 2: RESUMO MENSUAL E ACUMULADOS
 # -----------------------------------------------------------------------------
