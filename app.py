@@ -84,6 +84,28 @@ def get_horarios_profesor(nombre_profesor: str):
         st.error(f"Erro ao consultar horarios: {e}")
         return []
 
+@st.cache_data(ttl=60)
+def get_acumulado_artigo(docente: str, motivo: str, data_ref, es_horas: bool = True):
+    try:
+        partes = get_partes_profesor(docente)
+        if not partes:
+            return 0.0
+        
+        total = 0.0
+        for p in partes:
+            mot = str(p.get("motivo", ""))
+            if es_horas and ("33" in mot or "33" in str(motivo)):
+                try:
+                    total += float(p.get("horas", 0))
+                except (ValueError, TypeError):
+                    pass
+            elif not es_horas and ("15" in mot or "15" in str(motivo)):
+                if p.get("es_lectivo", False):
+                    total += 1.0
+        return total
+    except Exception as e:
+        return 0.0
+        
 # -----------------------------------------------------------------------------
 # CONFIGURACIÓN DA PÁXINA E ESTILOS CORPORATIVOS (ESTILO XUNTA)
 # -----------------------------------------------------------------------------
