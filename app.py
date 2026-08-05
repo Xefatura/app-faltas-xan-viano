@@ -371,48 +371,48 @@ if menu == "📋 Rexistro de Ausencia":
             help="Anotacións internas da Xefatura de Estudos (p. ex., nº de rexistro, xustificante achegado, etc.)."
         )
 
+   # -------------------------------------------------------------------------
     # LÓXICA DE ADVERTENCIAS E CONTROL DE LÍMITES
+    # -------------------------------------------------------------------------
     st.markdown("---")
     st.subheader("🔍 Comprobación Automática de Saldo")
     
-    # Control Artigo 33
+    # Control Artigo 33 (Enfermidade común / Asistencia médica / Horas)
     if "Art. 33" in motivo_sel:
         horas_acumuladas = get_acumulado_artigo(docente_sel, motivo_sel, data_falta, es_horas=True)
-        try:
-            horas_novas = float(horas_input) if horas_input.strip() != "" else 0.0
-        except ValueError:
-            horas_novas = 0.0
-            
+        horas_novas = float(horas_input) if horas_input else 0.0
         total_previsto = horas_acumuladas + horas_novas
         
         col_a, col_b, col_c = st.columns(3)
-        col_a.metric("Acumulado xa gardado", f"{horas_acumuladas} h")
-        col_b.metric("Pendente neste formulario", f"{horas_novas} h")
-        col_c.metric("Total previsto", f"{total_previsto} / 24 h")
+        col_a.metric("Acumulado xa gardado", f"{horas_acumuladas:.2f} h")
+        col_b.metric("Pendente neste formulario", f"{horas_novas:.2f} h")
+        col_c.metric("Total previsto", f"{total_previsto:.2f} / 24 h")
         
         if total_previsto > 24:
-            st.error(f"⚠️ ATENCIÓN: Superase o límite anual de 24 horas do Artigo 33! (Total: {total_previsto} h)")
+            st.error(f"🚫 **ALERTA CRÍTICA:** Superase o límite anual de 24 horas do Artigo 33! (Total previsto: {total_previsto:.2f} h)")
         elif total_previsto >= 20:
-            st.warning(f"⚡ ADVERTENCIA: O docente está próximo ao límite de 24 horas (Total: {total_previsto} h)")
+            st.warning(f"⚡ **ADVERTENCIA:** O docente está moi próximo ao límite de 24 horas (Total previsto: {total_previsto:.2f} h)")
         else:
             st.success("✅ Solicitude dentro do marxe permitido para o Artigo 33.")
 
-    # Control Artigo 15
+    # Control Artigo 15 (Asuntos Propios / Particulares)
     elif "Art. 15" in motivo_sel:
         dias_lectivos_acum = get_acumulado_artigo(docente_sel, motivo_sel, data_falta, es_horas=False)
         incremento = 1 if es_lectivo else 0
-        total_lectivos = dias_lectivos_acum + incremento
+        total_lectivos = int(dias_lectivos_acum + incremento)
         
         col_a, col_b = st.columns(2)
         col_a.metric("Días lectivos xa consumidos", f"{int(dias_lectivos_acum)} días")
-        col_b.metric("Lectivos previstos coa solicitude", f"{int(total_lectivos)} / 2 días")
+        col_b.metric("Lectivos previstos coa solicitude", f"{total_lectivos} / 2 días")
         
-        if total_lectivos > 2:
-            st.error("⚠️ ALERTA: O Artigo 15 só permite un máximo de 2 DÍAS LECTIVOS por curso escolar!")
+        if total_lectivos == 1:
+            st.warning("⚠️ **1ª Solicitude Lectiva:** O docente consome o seu primeiro día lectivo do curso. Restaralle **1 día** dispoñible.")
         elif total_lectivos == 2:
-            st.warning("⚡ ADVERTENCIA: Con esta solicitude o docente consome o seu 2º e ÚLTIMO día lectivo permitido polo Art. 15.")
+            st.error("🚫 **2ª Solicitude Lectiva (ÚLTIMO PERMITIDO):** Coa entrada deste parte o docente esgota o límite de 2 días lectivos. **Non ten dereito a solicitar máis días lectivos no curso.**")
+        elif total_lectivos > 2:
+            st.error(f"⛔ **ALERTA CRÍTICA - LÍMITE SUPERADO:** O docente xa consumiu os {int(dias_lectivos_acum)} días lectivos permitidos do Art. 15. A normativa prohibe conceder máis de 2 días lectivos por curso.")
         else:
-            st.success("✅ Solicitude dentro dos marxes do Artigo 15.")
+            st.success("✅ Solicitude en día non lectivo (sen afectación ao cómputo de 2 días).")
 
     st.markdown("---")
     if st.button("💾 Gardar Ausencia en Supabase", use_container_width=True):
