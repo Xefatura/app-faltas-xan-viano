@@ -15,6 +15,76 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
 # -----------------------------------------------------------------------------
+# CONFIGURACIÓN DA PÁXINA STREAMLIT
+# -----------------------------------------------------------------------------
+st.set_page_config(
+    page_title="Xestión de Ausencias - CMUS",
+    page_icon="🎼",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# -----------------------------------------------------------------------------
+# CONEXIÓN CON SUPABASE
+# -----------------------------------------------------------------------------
+@st.cache_resource
+def init_supabase() -> Client:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
+try:
+    supabase = init_supabase()
+except Exception as e:
+    st.error(f"Erro ao conectar con Supabase. Revisa os Secrets en Streamlit Cloud: {e}")
+    st.stop()
+
+# -----------------------------------------------------------------------------
+# XESTIÓN DE ESTADO (SESSION STATE)
+# -----------------------------------------------------------------------------
+if "form_version" not in st.session_state:
+    st.session_state.form_version = 0
+
+# -----------------------------------------------------------------------------
+# FUNCIÓNS DE CONSULTA DE DATOS CON CACHÉ SEGURA (TTL)
+# -----------------------------------------------------------------------------
+@st.cache_data(ttl=60)
+def get_profesores_list():
+    try:
+        res = supabase.table("profesores").select("*").order("nombre").execute()
+        return res.data if res and res.data else []
+    except Exception as e:
+        st.error(f"Erro ao cargar a lista de profesores: {e}")
+        return []
+
+@st.cache_data(ttl=60)
+def get_partes_profesor(nombre_profesor: str):
+    try:
+        res = supabase.table("partes").select("*").eq("profesor", nombre_profesor).execute()
+        return res.data if res and res.data else []
+    except Exception as e:
+        st.error(f"Erro ao obter faltas do profesor: {e}")
+        return []
+
+@st.cache_data(ttl=60)
+def get_todos_partes():
+    try:
+        res = supabase.table("partes").select("*").order("fecha", desc=True).execute()
+        return res.data if res and res.data else []
+    except Exception as e:
+        st.error(f"Erro ao obter o histórico de ausencias: {e}")
+        return []
+
+@st.cache_data(ttl=60)
+def get_horarios_profesor(nombre_profesor: str):
+    try:
+        res = supabase.table("horarios").select("*").eq("profesor", nombre_profesor).execute()
+        return res.data if res and res.data else []
+    except Exception as e:
+        st.error(f"Erro ao consultar horarios: {e}")
+        return []
+
+# -----------------------------------------------------------------------------
 # CONFIGURACIÓN DA PÁXINA E ESTILOS CORPORATIVOS (ESTILO XUNTA)
 # -----------------------------------------------------------------------------
 st.set_page_config(
