@@ -124,15 +124,22 @@ st.markdown("""
 # INICIALIZACIÓN DE SUPABASE
 # -----------------------------------------------------------------------------
 @st.cache_resource
-def init_supabase() -> Client:
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+def init_supabase():
+    # Verificación previa de seguridade das claves
+    if "SUPABASE_URL" not in st.secrets or "SUPABASE_KEY" not in st.secrets:
+        return None
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        return create_client(url, key)
+    except Exception:
+        return None
 
-try:
-    supabase = init_supabase()
-except Exception as e:
-    st.error(f"Erro ao conectar con Supabase: {e}")
+supabase = init_supabase()
+
+if supabase is None:
+    st.error("⚠️ Erro crítico: Non se puido conectar con Supabase.")
+    st.info("Revisa o apartado 'Secrets' en Streamlit Cloud e asegura que os nomes sexan exactamente 'SUPABASE_URL' e 'SUPABASE_KEY'.")
     st.stop()
 
 # -----------------------------------------------------------------------------
