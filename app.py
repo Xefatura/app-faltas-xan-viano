@@ -357,16 +357,16 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Menú lateral
+# Menú lateral de navegación
 menu = st.sidebar.radio(
     "Navegación / Xestión",
     ["📋 Rexistro de Ausencia", "📊 Resumo Mensual e Acumulados", "👨‍🏫 Profesores e Horarios", "⚙️ Configuración e Carga"]
 )
 
-# Botón de Pechar Sesión no menú lateral
+# Separador e Botón de Pechar Sesión na barra lateral
 st.sidebar.markdown("---")
-if st.sidebar.button("🚪 Pechar sesión"):
-    st.session_state["authenticated"] = False
+if st.sidebar.button("🚪 Pechar sesión", use_container_width=True):
+    st.session_state.authenticated = False
     st.rerun()
     
 # -----------------------------------------------------------------------------
@@ -403,12 +403,26 @@ if menu == "📋 Rexistro de Ausencia":
             key=f"data_{version}",
             help="Data na que se produce a falta. Se se entrega con posterioridade, selecciona a data orixinal da ausencia para manter o cómputo retroactivo correcto."
         )
+        
+        # Opcións de artigos incluindo a nova opción manual
+        opcions_artigos = list(ARTIGOS_DOG.keys()) + ["Outro / Especificar..."] if 'ARTIGOS_DOG' in globals() else ["Artigo 33", "Artigo 15", "Outro / Especificar..."]
+        
         motivo_sel = st.selectbox(
             "Artigo / Tipo de Permiso", 
-            list(ARTIGOS_DOG.keys()),
+            opcions_artigos,
             key=f"motivo_{version}",
-            help="Selecciona o artigo normativo correspondente segundo o DOG 30/2016 e 41/2016."
+            help="Selecciona o artigo normativo correspondente segundo o DOG ou escolle 'Outro' para escribir un personalizado."
         )
+
+        # Campo dinámico se se elixe "Outro / Especificar..."
+        if motivo_sel == "Outro / Especificar...":
+            motivo_final = st.text_input(
+                "Escribe o artigo, apartado ou motivo personalizado:",
+                key=f"motivo_custom_{version}",
+                placeholder="Ex: Artigo 12.b - Exame oficial"
+            )
+        else:
+            motivo_final = motivo_sel
 
     with col2:
         horas_input = st.text_input(
@@ -429,6 +443,44 @@ if menu == "📋 Rexistro de Ausencia":
             help="Anotacións internas da Xefatura de Estudos (p. ex., nº de rexistro, xustificante achegado, etc.)."
         )
 
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Botón de gardado e lóxica con Supabase
+    if st.button("💾 Gardar Rexistro de Ausencia", use_container_width=True):
+        if not motivo_final or motivo_final.strip() == "":
+            st.error("Por favor, especifica un artigo ou motivo válido.")
+        else:
+            try:
+                horas_val = float(horas_input.replace(",", "."))
+            except ValueError:
+                horas_val = 1.0
+
+            # Cálculo de acumulados para retroactividade
+            acum_previo = get_acumulado_artigo(docente_sel, motivo_final, data_falta)
+            total_acum = acum_previo + horas_val
+
+            # Inserción en Supabase
+            payload = {
+                "profesor": docente_sel,
+                "fecha": data_falta.strftime("%Y-%m-%d"),
+                "motivo": motivo_final,
+                "horas": horas_val,
+                "es_lectivo": es_lectivo,
+                "observaciones": observaciones,
+                "acumulado_anterior": acum_previo,
+                "total_acumulado": total_acum
+            }
+            
+            try:
+                supabase.table("partes").insert(payload).execute()
+                st.success(f"Rexistro gardado correctamente para **{docente_sel}** ({motivo_final}).")
+                
+                # Incrementamos a versión para limpar o formulario
+                st.session_state.form_version += 1
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao gardar en Supabase: {e}")
+                
    # -------------------------------------------------------------------------
     # LÓXICA DE ADVERTENCIAS E CONTROL DE LÍMITES
     # -------------------------------------------------------------------------
