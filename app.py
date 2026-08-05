@@ -260,7 +260,7 @@ def enviar_email_resumo(email_destino, docente, contenido_pdf, mes_nome):
         msg['Subject'] = f"Resumo de Ausencias e Permisos - {docente} ({mes_nome})"
         
         body = f"Estimado/a {docente},\n\nAnéxase o resumo actualizado das túas ausencias e licenzas rexistradas ata a data no CMUS Xan Viaño.\n\nAtentamente,\nXefatura de Estudos"
-        msg.attach(MIMEText(body, 'plain'))
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
         att = MIMEApplication(contenido_pdf, _subtype="pdf")
         att.add_header('Content-Disposition', 'attachment', filename=f"Resumo_Ausencias_{docente}.pdf")
