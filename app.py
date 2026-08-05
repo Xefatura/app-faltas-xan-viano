@@ -339,20 +339,18 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Contido e menú da barra lateral
-with st.sidebar:
-    st.title("📌 Navegación")
+# Menú lateral
+menu = st.sidebar.radio(
+    "Navegación / Xestión",
+    ["📋 Rexistro de Ausencia", "📊 Resumo Mensual e Acumulados", "👨‍🏫 Profesores e Horarios", "⚙️ Configuración e Carga"]
+)
+
+# Botón de Pechar Sesión no menú lateral
+st.sidebar.markdown("---")
+if st.sidebar.button("🚪 Pechar sesión"):
+    st.session_state["authenticated"] = False
+    st.rerun()
     
-    menu = st.radio(
-        "Xestión / Selección:",
-        ["📋 Rexistro de Ausencia", "📊 Resumo Mensual e Acumulados", "👨‍🏫 Profesores e Horarios", "⚙️ Configuración e Carga"]
-    )
-    
-    # Separador visual e botón de saída garantido ao final da barra lateral
-    st.markdown("---")
-    if st.button("🚪 Pechar sesión", use_container_width=True, key="btn_logout_sidebar"):
-        st.session_state.authenticated = False
-        st.rerun()
 # -----------------------------------------------------------------------------
 # PESTANA 1: REXISTRO DE AUSENCIA
 # -----------------------------------------------------------------------------
