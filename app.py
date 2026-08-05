@@ -373,24 +373,33 @@ def generar_pdf_mensual(mes_num, ano_num, df_partes):
 # -----------------------------------------------------------------------------
 # INTERFACE PRINCIPAL E NAVEGACIÓN
 # -----------------------------------------------------------------------------
+# 1. BARRA LATERAL (Navegación e Usuario)
+st.sidebar.title("📌 Xestión CMUS")
+
+menu = st.sidebar.radio(
+    "Selecciona unha opción:",
+    ["📋 Rexistro de Ausencia", "📊 Resumo Mensual e Acumulados", "👨‍🏫 Profesores e Horarios", "⚙️ Configuración e Carga"],
+    key="navigation_menu"
+)
+
+st.sidebar.markdown("---")
+
+# Información do usuario conectado
+user_activos = st.secrets.get("APP_USER", "Xefatura de Estudos")
+st.sidebar.caption(f"👤 Conectado como: **{user_activos}**")
+
+# Botón de Pechar Sesión con limpeza de estado
+if st.sidebar.button("🚪 Pechar sesión", use_container_width=True, type="secondary"):
+    st.session_state.authenticated = False
+    st.rerun()
+
+# 2. CABECEIRA PRINCIPAL DA APLICACIÓN
 st.markdown("""
     <div class="main-header">
         <h1>🎼 CMUS Xan Viaño - Xefatura de Estudos</h1>
         <p>Sistema Integral de Control de Asistencia, Horarios e Permisos</p>
     </div>
 """, unsafe_allow_html=True)
-
-# Menú lateral de navegación
-menu = st.sidebar.radio(
-    "Navegación / Xestión",
-    ["📋 Rexistro de Ausencia", "📊 Resumo Mensual e Acumulados", "👨‍🏫 Profesores e Horarios", "⚙️ Configuración e Carga"]
-)
-
-# Separador e Botón de Pechar Sesión na barra lateral
-st.sidebar.markdown("---")
-if st.sidebar.button("🚪 Pechar sesión", use_container_width=True):
-    st.session_state.authenticated = False
-    st.rerun()
     
 # -----------------------------------------------------------------------------
 # PESTANA 1: REXISTRO DE AUSENCIA
@@ -424,20 +433,18 @@ if menu == "📋 Rexistro de Ausencia":
             "Data da ausencia", 
             value=date.today(),
             key=f"data_{version}",
-            help="Data na que se produce a falta. Se se entrega con posterioridade, selecciona a data orixinal da ausencia para manter o cómputo retroactivo correcto."
+            help="Data na que se produce a falta. Mantén o cómputo retroactivo correcto."
         )
         
-        # Opcións de artigos incluindo a nova opción manual
         opcions_artigos = list(ARTIGOS_DOG.keys()) + ["Outro / Especificar..."] if 'ARTIGOS_DOG' in globals() else ["Artigo 33", "Artigo 15", "Outro / Especificar..."]
         
         motivo_sel = st.selectbox(
             "Artigo / Tipo de Permiso", 
             opcions_artigos,
             key=f"motivo_{version}",
-            help="Selecciona o artigo normativo correspondente segundo o DOG ou escolle 'Outro' para escribir un personalizado."
+            help="Selecciona o artigo normativo correspondente."
         )
 
-        # Campo dinámico se se elixe "Outro / Especificar..."
         if motivo_sel == "Outro / Especificar...":
             motivo_final = st.text_input(
                 "Escribe o artigo, apartado ou motivo personalizado:",
@@ -458,69 +465,31 @@ if menu == "📋 Rexistro de Ausencia":
             "É día lectivo?", 
             value=True, 
             key=f"lectivo_{version}",
-            help="Marcar se a ausencia se produce nun día con actividade lectiva (Especialmente relevante para o Artigo 15)."
+            help="Marcar se a ausencia se produce nun día con actividade lectiva."
         )
         observaciones = st.text_area(
             "Observacións / Xustificación", 
             key=f"obs_{version}",
-            help="Anotacións internas da Xefatura de Estudos (p. ex., nº de rexistro, xustificante achegado, etc.)."
+            help="Anotacións internas da Xefatura de Estudos."
         )
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Botón de gardado e lóxica con Supabase
-    if st.button("💾 Gardar Rexistro de Ausencia", use_container_width=True):
-        if not motivo_final or motivo_final.strip() == "":
-            st.error("Por favor, especifica un artigo ou motivo válido.")
-        else:
-            try:
-                horas_val = float(horas_input.replace(",", "."))
-            except ValueError:
-                horas_val = 1.0
-
-            # Cálculo de acumulados para retroactividade
-            acum_previo = get_acumulado_artigo(docente_sel, motivo_final, data_falta)
-            total_acum = acum_previo + horas_val
-
-            # Inserción en Supabase
-            payload = {
-                "profesor": docente_sel,
-                "fecha": data_falta.strftime("%Y-%m-%d"),
-                "motivo": motivo_final,
-                "horas": horas_val,
-                "es_lectivo": es_lectivo,
-                "observaciones": observaciones,
-                "acumulado_anterior": acum_previo,
-                "total_acumulado": total_acum
-            }
-            
-            try:
-                supabase.table("partes").insert(payload).execute()
-                st.success(f"Rexistro gardado correctamente para **{docente_sel}** ({motivo_final}).")
-                
-                # Incrementamos a versión para limpar o formulario
-                st.session_state.form_version += 1
-                st.rerun()
-            except Exception as e:
-                st.error(f"Erro ao gardar en Supabase: {e}")
-                
-   # -------------------------------------------------------------------------
-    # LÓXICA DE ADVERTENCIAS E CONTROL DE LÍMITES
-    # -------------------------------------------------------------------------
-    st.markdown("---")
-    st.subheader("🔍 Comprobación Automática de Saldo")
-    
-    # Tratamento seguro das horas introducidas
+    # Conversión segura das horas
     try:
         horas_novas = float(horas_input.replace(",", "."))
     except (ValueError, AttributeError):
         horas_novas = 0.0
 
+    # -------------------------------------------------------------------------
+    # LÓXICA DE ADVERTENCIAS E CONTROL DE LÍMITES
+    # -------------------------------------------------------------------------
+    st.markdown("---")
+    st.subheader("🔍 Comprobación Automática de Saldo")
+    
     acum_previo = 0.0
     total_previsto = 0.0
 
-    # Control Artigo 33 (Enfermidade común / Asistencia médica / Horas)
-    if "33" in motivo_sel or "Art. 33" in motivo_final:
+    # Control Artigo 33 (Horas - Máximo 35h)
+    if "33" in motivo_sel or "Art. 33" in str(motivo_final):
         horas_acumuladas = get_acumulado_artigo(docente_sel, motivo_final, data_falta, es_horas=True)
         acum_previo = horas_acumuladas
         total_previsto = horas_acumuladas + horas_novas
@@ -528,17 +497,17 @@ if menu == "📋 Rexistro de Ausencia":
         col_a, col_b, col_c = st.columns(3)
         col_a.metric("Acumulado xa gardado", f"{horas_acumuladas:.2f} h")
         col_b.metric("Pendente neste formulario", f"{horas_novas:.2f} h")
-        col_c.metric("Total previsto", f"{total_previsto:.2f} / 24 h")
+        col_c.metric("Total previsto", f"{total_previsto:.2f} / 35 h")
         
-        if total_previsto > 24:
-            st.error(f"🚫 **ALERTA CRÍTICA:** Superase o límite anual de 24 horas do Artigo 33! (Total previsto: {total_previsto:.2f} h)")
-        elif total_previsto >= 20:
-            st.warning(f"⚡ **ADVERTENCIA:** O docente está moi próximo ao límite de 24 horas (Total previsto: {total_previsto:.2f} h)")
+        if total_previsto > 35:
+            st.error(f"🚫 **ALERTA CRÍTICA:** Superase o límite anual de 35 horas do Artigo 33! (Total previsto: {total_previsto:.2f} h)")
+        elif total_previsto >= 30:
+            st.warning(f"⚡ **ADVERTENCIA:** O docente está moi próximo ao límite de 35 horas (Total previsto: {total_previsto:.2f} h)")
         else:
             st.success("✅ Solicitude dentro do marxe permitido para o Artigo 33.")
 
-    # Control Artigo 15 (Asuntos Propios / Particulares)
-    elif "15" in motivo_sel or "Art. 15" in motivo_final:
+    # Control Artigo 15 (Asuntos Propios / Días - Máximo 2 lectivos)
+    elif "15" in motivo_sel or "Art. 15" in str(motivo_final):
         dias_lectivos_acum = get_acumulado_artigo(docente_sel, motivo_final, data_falta, es_horas=False)
         incremento = 1 if es_lectivo else 0
         acum_previo = dias_lectivos_acum
@@ -550,24 +519,23 @@ if menu == "📋 Rexistro de Ausencia":
         col_b.metric("Lectivos previstos coa solicitude", f"{total_lectivos} / 2 días")
         
         if total_lectivos == 1:
-            st.warning("⚠️ **1ª Solicitude Lectiva:** O docente consome o seu primeiro día lectivo do curso. Restaralle **1 día** dispoñible.")
+            st.warning("⚠️ **1ª Solicitude Lectiva:** O docente consome o seu primeiro día lectivo do curso.")
         elif total_lectivos == 2:
-            st.error("🚫 **2ª Solicitude Lectiva (ÚLTIMO PERMITIDO):** Coa entrada deste parte o docente esgota o límite de 2 días lectivos. **Non ten dereito a solicitar máis días lectivos no curso.**")
+            st.error("🚫 **2ª Solicitude Lectiva (ÚLTIMO PERMITIDO):** Coa entrada deste parte o docente esgota o límite de 2 días lectivos.")
         elif total_lectivos > 2:
-            st.error(f"⛔ **ALERTA CRÍTICA - LÍMITE SUPERADO:** O docente xa consumiu os {int(dias_lectivos_acum)} días lectivos permitidos do Art. 15. A normativa prohibe conceder máis de 2 días lectivos por curso.")
+            st.error(f"⛔ **ALERTA CRÍTICA - LÍMITE SUPERADO:** A normativa prohibe conceder máis de 2 días lectivos por curso.")
         else:
             st.success("✅ Solicitude en día non lectivo (sen afectación ao cómputo de 2 días).")
     else:
-        # Outros artigos sen límites automatizados
         st.info(f"ℹ️ O artigo ou motivo **'{motivo_final}'** rexistrarase sen restricións de bolsa de horas automática.")
 
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
     
     # -------------------------------------------------------------------------
-    # BOTÓN DE GARDADO EN SUPABASE
+    # BOTÓN ÚNICO DE GARDADO EN SUPABASE
     # -------------------------------------------------------------------------
-    if st.button("💾 Gardar Ausencia en Supabase", use_container_width=True):
-        if not motivo_final or motivo_final.strip() == "":
+    if st.button("💾 Gardar Rexistro de Ausencia", use_container_width=True, type="primary"):
+        if not motivo_final or str(motivo_final).strip() == "":
             st.error("Por favor, especifica un artigo ou motivo válido antes de gardar.")
         else:
             nuevo_parte = {
@@ -583,10 +551,10 @@ if menu == "📋 Rexistro de Ausencia":
             
             try:
                 res = supabase.table("partes").insert(nuevo_parte).execute()
-                if res.data:
-                    st.cache_data.clear()  # Limpeza de caché xeral de Streamlit
+                if res and res.data:
+                    st.cache_data.clear()
                     st.session_state.form_version += 1
-                    st.success("✅ Ausencia rexistrada e gardada correctamente na base de datos!")
+                    st.success(f"✅ Ausencia rexistrada e gardada correctamente para **{docente_sel}**!")
                     st.rerun()
                 else:
                     st.error("Erro ao gardar os datos en Supabase.")
@@ -606,8 +574,11 @@ elif menu == "📊 Resumo Mensual e Acumulados":
     ]
     
     col_m, col_a = st.columns(2)
-    mes_sel_idx = col_m.selectbox("Seleccionar Mes", range(1, 13), format_func=lambda x: meses_gal[x-1], index=datetime.now().month - 1)
-    ano_sel = col_a.number_input("Ano", value=datetime.now().year, step=1)
+    mes_actual_idx = datetime.now().month - 1 if 'datetime' in globals() else 0
+    ano_actual = datetime.now().year if 'datetime' in globals() else 2026
+
+    mes_sel_idx = col_m.selectbox("Seleccionar Mes", range(1, 13), format_func=lambda x: meses_gal[x-1], index=mes_actual_idx)
+    ano_sel = col_a.number_input("Ano", value=ano_actual, step=1)
     
     # Rango de datas do mes seleccionado
     start_date = f"{ano_sel}-{mes_sel_idx:02d}-01"
@@ -618,7 +589,7 @@ elif menu == "📊 Resumo Mensual e Acumulados":
         
     try:
         res = supabase.table("partes").select("*").gte("fecha", start_date).lt("fecha", end_date).order("fecha", desc=False).execute()
-        partes_mes = res.data
+        partes_mes = res.data if res and res.data else []
     except Exception as e:
         st.error(f"Erro ao consultar Supabase: {e}")
         partes_mes = []
@@ -626,11 +597,10 @@ elif menu == "📊 Resumo Mensual e Acumulados":
     if partes_mes:
         df = pd.DataFrame(partes_mes)
         
-        # Asignación segura de acumulados (prioriza o gardado en BD, senón calcula)
-        if "acumulado_anterior" not in df.columns:
-            df["acumulado_anterior"] = 0.0
-        if "total_acumulado" not in df.columns:
-            df["total_acumulado"] = df["horas"]
+        # Asignación segura de columnas por se faltan
+        for col in ["id", "profesor", "fecha", "motivo", "horas", "observaciones", "acumulado_anterior", "total_acumulado"]:
+            if col not in df.columns:
+                df[col] = 0.0 if "acumulado" in col or col == "horas" else ""
 
         # Copia para amosar na interface cos nomes de columnas limpos
         df_display = df[[
@@ -651,33 +621,31 @@ elif menu == "📊 Resumo Mensual e Acumulados":
         st.markdown("---")
         st.subheader("⚙️ Xestionar / Eliminar Rexistros")
         
-        opcions_registros = {
-            f"ID {row['id']} - {row['profesor']} ({row['fecha']}) - {row['motivo']}": row['id']
-            for _, row in df.iterrows()
-        }
+        opcions_registros = {}
+        for _, row in df.iterrows():
+            reg_id = row.get('id', '')
+            label = f"ID {reg_id} - {row.get('profesor', '')} ({row.get('fecha', '')}) - {row.get('motivo', '')}"
+            opcions_registros[label] = reg_id
         
-        falta_seleccionada = st.selectbox("Selecciona un rexistro para eliminar:", list(opcions_registros.keys()))
-        id_para_eliminar = opcions_registros[falta_seleccionada]
-        
-        if st.button("🗑️ Eliminar Rexistro da Base de Datos", use_container_width=True):
-            try:
-                # 1. Borrado directo en Supabase por clave primaria ID
-                supabase.table("partes").delete().eq("id", id_para_eliminar).execute()
-                
-                # 2. Borrado da memoria caché de Streamlit
-                st.cache_data.clear()
-                
-                # 3. Incremento da versión para resetear os formularios
-                if "form_version" in st.session_state:
-                    st.session_state.form_version += 1
-                
-                st.success("✅ Rexistro eliminado correctamente de Supabase.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Ocorreu un erro ao eliminar o rexistro: {e}")
-        
+        if opcions_registros:
+            falta_seleccionada = st.selectbox("Selecciona un rexistro para eliminar:", list(opcions_registros.keys()))
+            id_para_eliminar = opcions_registros[falta_seleccionada]
+            
+            if st.button("🗑️ Eliminar Rexistro da Base de Datos", use_container_width=True, type="secondary"):
+                try:
+                    supabase.table("partes").delete().eq("id", id_para_eliminar).execute()
+                    st.cache_data.clear()
+                    
+                    if "form_version" in st.session_state:
+                        st.session_state.form_version += 1
+                    
+                    st.success("✅ Rexistro eliminado correctamente de Supabase.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Ocorreu un erro ao eliminar o rexistro: {e}")
+
         # ---------------------------------------------------------------------
-        # SECCIÓN 2: EXPORTACIÓN DE INFORMES OFICIAIS
+        # SECCIÓN 2: EXPORTACIÓN E ENVÍO DE INFORMES OFICIAIS
         # ---------------------------------------------------------------------
         st.markdown("---")
         st.subheader("📄 Exportación de Informes Oficiais")
@@ -685,18 +653,36 @@ elif menu == "📊 Resumo Mensual e Acumulados":
         try:
             pdf_bytes = generar_pdf_mensual(mes_sel_idx, ano_sel, df)
             
-            st.download_button(
-                label=f"📥 Descargar PDF Mensual de {meses_gal[mes_sel_idx-1]} {ano_sel}",
-                data=pdf_bytes,
-                file_name=f"Parte_Mensual_Faltas_{meses_gal[mes_sel_idx-1]}_{ano_sel}_CMUS_Xan_Viano.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+            col_pdf1, col_pdf2 = st.columns(2)
+            
+            with col_pdf1:
+                st.download_button(
+                    label=f"📥 Descargar PDF Mensual ({meses_gal[mes_sel_idx-1]} {ano_sel})",
+                    data=pdf_bytes,
+                    file_name=f"Parte_Mensual_Faltas_{meses_gal[mes_sel_idx-1]}_{ano_sel}_CMUS_Xan_Viano.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            
+            with col_pdf2:
+                # Envío directo do PDF por email
+                email_dest = st.text_input("Correo do docente para envío directo:", placeholder="docente@edu.xunta.gal")
+                if st.button("✉️ Enviar PDF por Correo", use_container_width=True):
+                    if email_dest and "@" in email_dest:
+                        ok, msg = enviar_email_resumo(email_dest, "Docente", pdf_bytes, meses_gal[mes_sel_idx-1])
+                        if ok:
+                            st.success(msg)
+                        else:
+                            st.warning(msg)
+                    else:
+                        st.error("Introduce un enderezo de correo válido.")
+                        
         except Exception as e:
             st.error(f"Non se puido xerar o informe PDF: {e}")
             
     else:
         st.info(f"Non hai faltas rexistradas en **{meses_gal[mes_sel_idx-1]} de {ano_sel}**.")
+        
 # -----------------------------------------------------------------------------
 # PESTANA 3: PROFESORES E HORARIOS
 # -----------------------------------------------------------------------------
@@ -708,11 +694,11 @@ elif menu == "👨‍🏫 Profesores e Horarios":
         st.warning("Non hai profesores rexistrados na base de datos.")
         st.stop()
         
-    prof_nombres = sorted([p["nombre"] for p in profesores_data])
+    prof_nombres = sorted([p["nombre"] for p in profesores_data if "nombre" in p])
     prof_selected = st.selectbox("Seleccionar Docente para consultar/editar", prof_nombres)
     
     # Obter email actual do docente
-    prof_info = next((p for p in profesores_data if p["nombre"] == prof_selected), None)
+    prof_info = next((p for p in profesores_data if p.get("nombre") == prof_selected), None)
     email_prof = prof_info.get("email", "") if prof_info else ""
     
     col_e1, col_e2 = st.columns([3, 1])
@@ -721,8 +707,9 @@ elif menu == "👨‍🏫 Profesores e Horarios":
     with col_e2:
         st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
         if st.button("💾 Gardar Email", use_container_width=True):
+            email_sanitizado = nuevo_email.strip()
             try:
-                supabase.table("profesores").update({"email": nuevo_email}).eq("nombre", prof_selected).execute()
+                supabase.table("profesores").update({"email": email_sanitizado}).eq("nombre", prof_selected).execute()
                 st.cache_data.clear()
                 st.success("Email actualizado correctamente!")
                 st.rerun()
@@ -738,7 +725,7 @@ elif menu == "👨‍🏫 Profesores e Horarios":
     
     try:
         res_h = supabase.table("horarios").select("*").eq("profesor", prof_selected).execute()
-        horario_data = res_h.data
+        horario_data = res_h.data if res_h and res_h.data else []
     except Exception as e:
         st.error(f"Erro ao consultar horarios: {e}")
         horario_data = []
@@ -746,9 +733,24 @@ elif menu == "👨‍🏫 Profesores e Horarios":
     if horario_data:
         df_h = pd.DataFrame(horario_data)
         
-        # Filtramos e renomeamos as columnas máis relevantes para a vista
+        # Ordenación lóxica por días e horas
+        dias_orde = {"Luns": 1, "Martes": 2, "Mércores": 3, "Xoves": 4, "Venres": 5, "Sábado": 6, "Domingo": 7}
+        if "dia_semana" in df_h.columns:
+            df_h["orde_dia"] = df_h["dia_semana"].map(dias_orde).fillna(99)
+            df_h = df_h.sort_values(by=["orde_dia", "hora_inicio"]).drop(columns=["orde_dia"])
+        
         cols_mostrar = [c for c in ["dia_semana", "hora_inicio", "hora_fin", "materia", "grupo"] if c in df_h.columns]
-        st.dataframe(df_h[cols_mostrar], use_container_width=True)
+        
+        # Rinculación de nomes para vista limpa
+        df_h_display = df_h[cols_mostrar].rename(columns={
+            "dia_semana": "Día",
+            "hora_inicio": "Inicio",
+            "hora_fin": "Fin",
+            "materia": "Materia / Actividade",
+            "grupo": "Grupo"
+        })
+        
+        st.dataframe(df_h_display, use_container_width=True)
         
         if st.button("🗑️ Eliminar Horario deste Docente", use_container_width=True):
             try:
@@ -770,7 +772,7 @@ elif menu == "👨‍🏫 Profesores e Horarios":
     
     try:
         res_p = supabase.table("partes").select("*").eq("profesor", prof_selected).order("fecha", desc=True).execute()
-        partes_docente = res_p.data
+        partes_docente = res_p.data if res_p and res_p.data else []
     except Exception as e:
         st.error(f"Erro ao obter o histórico de ausencias: {e}")
         partes_docente = []
@@ -778,11 +780,14 @@ elif menu == "👨‍🏫 Profesores e Horarios":
     if partes_docente:
         df_ind = pd.DataFrame(partes_docente)
         
+        mes_curr = datetime.now().month if 'datetime' in globals() else 1
+        ano_curr = datetime.now().year if 'datetime' in globals() else 2026
+
         col_pdf, col_mail = st.columns(2)
         
         with col_pdf:
             try:
-                pdf_ind = generar_pdf_mensual(datetime.now().month, datetime.now().year, df_ind)
+                pdf_ind = generar_pdf_mensual(mes_curr, ano_curr, df_ind)
                 st.download_button(
                     "📥 Descargar Resumo PDF do Docente",
                     data=pdf_ind,
@@ -797,12 +802,12 @@ elif menu == "👨‍🏫 Profesores e Horarios":
         with col_mail:
             if st.button("📧 Enviar Resumo por Correo Electrónico", use_container_width=True):
                 destinatario = nuevo_email.strip() if nuevo_email else email_prof.strip()
-                if not destinatario:
-                    st.error("O docente non ten un correo electrónico asignado. Asigna un email arriba primeiro.")
+                if not destinatario or "@" not in destinatario:
+                    st.error("O docente non ten un correo electrónico válido asignado. Asigna un email arriba primeiro.")
                 elif not pdf_ind:
                     st.error("Non se puido xerar o documento PDF para adxuntar.")
                 else:
-                    ok, msg = enviar_email_resumo(destinatario, prof_selected, pdf_ind, f"{datetime.now().month}/{datetime.now().year}")
+                    ok, msg = enviar_email_resumo(destinatario, prof_selected, pdf_ind, f"{mes_curr}/{ano_curr}")
                     if ok:
                         st.success(f"Correo enviado con éxito a {destinatario}!")
                     else:
@@ -836,7 +841,7 @@ elif menu == "👨‍🏫 Profesores e Horarios":
                 st.error(f"Erro ao procesar a baixa: {e}")
 
 # -----------------------------------------------------------------------------
-# PESTANA 4: CONFIGURACIÓN E CARGA
+# PESTANA 4: CONFIGURACIÓN E CARGA MASIVA
 # -----------------------------------------------------------------------------
 elif menu == "⚙️ Configuración e Carga":
     st.subheader("Carga Masiva de Datos e Configuración")
@@ -862,17 +867,20 @@ elif menu == "⚙️ Configuración e Carga":
             st.write("Vista previa do arquivo:")
             st.dataframe(df_p.head(), use_container_width=True)
             
-            if st.button("Importar Docentes a Supabase", use_container_width=True):
-                cnt = 0
+            if st.button("Importar Docentes a Supabase", use_container_width=True, type="primary"):
+                # Obter docentes actuais para evitar duplicados se non hai cláusula UNIQUE
+                profes_existentes = {p["nombre"].strip().lower() for p in get_profesores_list() if "nombre" in p}
                 
-                # Limpar filas/columnas completamente baleiras
                 df_clean = df_p.dropna(how='all').dropna(how='all', axis=1)
                 
-                # axuste se a primeira fila contén os encabezados reais
+                # Normalización de encabezados
                 cols_lower = [str(col).strip().lower() for col in df_clean.columns]
                 if not any('nombre' in c or 'docente' in c or 'profesor' in c for c in cols_lower) and len(df_clean) > 0:
                     df_clean.columns = df_clean.iloc[0]
                     df_clean = df_clean[1:].reset_index(drop=True)
+
+                cnt_novos = 0
+                cnt_actualizados = 0
 
                 for _, row in df_clean.iterrows():
                     nom = ""
@@ -887,24 +895,21 @@ elif menu == "⚙️ Configuración e Carga":
                     if nom and nom.lower() != 'nan' and nom.lower() != 'nombre':
                         email_val = em if (em and em.lower() != 'nan') else None
                         
-                        # Inserción con UPSERT para evitar duplicados
-                        try:
-                            supabase.table("profesores").upsert(
-                                {"nombre": nom, "email": email_val}, 
-                                on_conflict="nombre"
-                            ).execute()
-                            cnt += 1
-                        except Exception:
-                            # Se a táboa non ten restrición UNIQUE en 'nombre', usamos insert seguro
+                        if nom.lower() in profes_existentes:
+                            # Actualizamos email se xa existe
+                            if email_val:
+                                supabase.table("profesores").update({"email": email_val}).eq("nombre", nom).execute()
+                                cnt_actualizados += 1
+                        else:
+                            # Inserción limpa de novo docente
                             supabase.table("profesores").insert({"nombre": nom, "email": email_val}).execute()
-                            cnt += 1
-                        
-                # Limpeza de caché xeral e reinicio
+                            cnt_novos += 1
+                
                 st.cache_data.clear()
                 if "form_version" in st.session_state:
                     st.session_state.form_version += 1
                 
-                st.success(f"Importados/actualizados {cnt} docentes correctamente en Supabase!")
+                st.success(f"Proceso completado: {cnt_novos} docentes novos engadidos e {cnt_actualizados} emails actualizados!")
                 st.rerun()
         except Exception as e:
             st.error(f"Erro ao procesar o arquivo de docentes: {e}")
@@ -919,7 +924,7 @@ elif menu == "⚙️ Configuración e Carga":
         "Cargar arquivo de horarios (.xlsx ou .csv)", 
         type=["xlsx", "csv"],
         key="uploader_horarios",
-        help="O arquivo debe ter as seguintes columnas: 'profesor', 'dia_semana', 'hora_inicio', 'hora_fin', 'materia', 'grupo'."
+        help="O arquivo debe ter columnas para docente, día da semana, hora de inicio, hora de fin e materia."
     )
     
     if archivo_horarios:
@@ -932,22 +937,42 @@ elif menu == "⚙️ Configuración e Carga":
             st.write("Vista previa dos horarios:")
             st.dataframe(df_h.head(), use_container_width=True)
             
-            if st.button("Importar Horarios a Supabase", use_container_width=True):
-                # Limpeza de valores nulos/NaN para evitar erros de JSON en Supabase
-                df_h_clean = df_h.where(pd.notnull(df_h), None)
-                records = df_h_clean.to_dict(orient="records")
+            if st.button("Importar Horarios a Supabase", use_container_width=True, type="primary"):
+                # Normalización de nomes de columnas
+                mapeo_cols = {}
+                for col in df_h.columns:
+                    c_norm = str(col).strip().lower()
+                    if "prof" in c_norm or "docente" in c_norm:
+                        mapeo_cols[col] = "profesor"
+                    elif "dia" in c_norm:
+                        mapeo_cols[col] = "dia_semana"
+                    elif "inicio" in c_norm or "comezo" in c_norm:
+                        mapeo_cols[col] = "hora_inicio"
+                    elif "fin" in c_norm or "remate" in c_norm:
+                        mapeo_cols[col] = "hora_fin"
+                    elif "materia" in c_norm or "asignatura" in c_norm or "actividade" in c_norm:
+                        mapeo_cols[col] = "materia"
+                    elif "grupo" in c_norm:
+                        mapeo_cols[col] = "grupo"
+
+                df_h_renamed = df_h.rename(columns=mapeo_cols)
                 
-                # Inserción por lotes (chunks) de 100 para evitar saturar o payload
-                chunk_size = 100
+                # Conversión de horas/datas a texto limpo para evitar erros de JSON en Supabase
+                for col in df_h_renamed.columns:
+                    df_h_renamed[col] = df_h_renamed[col].astype(str).replace({'nan': None, 'None': None, '<NaT>': None})
+
+                records = df_h_renamed.to_dict(orient="records")
+                
+                # Inserción por lotes (chunks) de 50 para garantir estabilidade
+                chunk_size = 50
                 total_inserted = 0
                 for i in range(0, len(records), chunk_size):
                     chunk = records[i:i + chunk_size]
                     supabase.table("horarios").insert(chunk).execute()
                     total_inserted += len(chunk)
                 
-                # Limpeza de caché e reinicio
                 st.cache_data.clear()
-                st.success(f"Horarios importados e gardados con éxito ({total_inserted} rexistros)!")
+                st.success(f"Horarios importados e gardados con éxito ({total_inserted} sesionais)!")
                 st.rerun()
             
         except Exception as e:
