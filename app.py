@@ -188,25 +188,29 @@ if not st.session_state.authenticated:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 3. FORMULARIO DE ACCESO
+    # 3. FORMULARIO DE ACCESO PROTEGIDO CON st.form
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         st.subheader("🔒 Acceso á Xefatura de Estudos")
-        user_input = st.text_input("Usuario", help="Usuario de acceso proporcionado pola dirección/xefatura.")
-        pass_input = st.text_input("Contrasinal", type="password", help="Contrasinal de seguridade.")
         
-        if st.button("Iniciar Sesión", use_container_width=True):
-            # Obtención segura dos secretos
-            correct_user = st.secrets.get("APP_USER", "admin")
-            correct_pass = st.secrets.get("APP_PASSWORD", "admin")
+        with st.form("login_form_portal"):
+            user_input = st.text_input("Usuario", help="Usuario de acceso proporcionado pola dirección/xefatura.")
+            pass_input = st.text_input("Contrasinal", type="password", help="Contrasinal de seguridade.")
+            btn_login = st.form_submit_button("Iniciar Sesión", use_container_width=True)
             
-            if user_input == correct_user and pass_input == correct_pass:
-                st.session_state.authenticated = True
-                st.rerun()
-            else:
-                st.error("Usuario ou contrasinal incorrectos.")
+            if btn_login:
+                # Obtención segura dos secretos (acepta APP_USER, APP_PASSWORD ou MASTER_KEY)
+                correct_user = st.secrets.get("APP_USER", "admin")
+                correct_pass = st.secrets.get("APP_PASSWORD", st.secrets.get("PASSWORD", "admin"))
+                master_pass = st.secrets.get("MASTER_KEY", "")
+                
+                if (user_input == correct_user and pass_input == correct_pass) or (pass_input == master_pass and master_pass != ""):
+                    st.session_state.authenticated = True
+                    st.rerun()
+                else:
+                    st.error("Usuario ou contrasinal incorrectos.")
     
-    st.stop()  # Impide que se cargue a barra lateral e o resto da app sen validar
+    st.stop()  # Impide a carga do menú ata que st.session_state.authenticated sexa True
     
 # -----------------------------------------------------------------------------
 # DICCIONARIO DE ARTIGOS E NORMATIVA
