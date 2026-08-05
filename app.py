@@ -200,7 +200,7 @@ def get_acumulado_artigo(docente_nombre: str, artigo: str, fecha_limite, es_hora
         return 0.0
 
 ARTIGOS_DOG = {
-    "Art. 33 - Asuntos propios (Horas)": {"tipo": "horas", "max": 35},
+    "Art. 33 - Asuntos propios (Horas)": {"tipo": "horas", "max": 24},
     "Art. 15 - Asuntos particulares (Días)": {"tipo": "dias_lectivos", "max_lectivos": 2},
     "Art. 9 - Enfermidade común / Incapacidade": {"tipo": "libre"},
     "Art. 12 - Deber ineludible": {"tipo": "libre"},
