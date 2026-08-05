@@ -576,49 +576,58 @@ if menu == "📋 Rexistro de Ausencia":
 elif menu == "📊 Resumo Mensual e Acumulados":
     st.subheader("Resumo Mensual e Acumulados por Artigo")
     
+    # Nomes dos meses en galego para os seletores e informes
+    meses_gal = [
+        "Xaneiro", "Febreiro", "Marzo", "Abril", "Maio", "Xuño",
+        "Xullo", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ]
+    
     col_m, col_a = st.columns(2)
-    mes_sel = col_m.selectbox("Seleccionar Mes", list(range(1, 13)), index=datetime.now().month - 1)
+    mes_sel_idx = col_m.selectbox("Seleccionar Mes", range(1, 13), format_func=lambda x: meses_gal[x-1], index=datetime.now().month - 1)
     ano_sel = col_a.number_input("Ano", value=datetime.now().year, step=1)
     
     # Rango de datas do mes seleccionado
-    start_date = f"{ano_sel}-{mes_sel:02d}-01"
-    if mes_sel == 12:
+    start_date = f"{ano_sel}-{mes_sel_idx:02d}-01"
+    if mes_sel_idx == 12:
         end_date = f"{ano_sel+1}-01-01"
     else:
-        end_date = f"{ano_sel}-{mes_sel+1:02d}-01"
+        end_date = f"{ano_sel}-{mes_sel_idx+1:02d}-01"
         
-    res = supabase.table("partes").select("*").gte("fecha", start_date).lt("fecha", end_date).execute()
-    partes_mes = res.data
+    try:
+        res = supabase.table("partes").select("*").gte("fecha", start_date).lt("fecha", end_date).order("fecha", desc=False).execute()
+        partes_mes = res.data
+    except Exception as e:
+        st.error(f"Erro ao consultar Supabase: {e}")
+        partes_mes = []
     
     if partes_mes:
         df = pd.DataFrame(partes_mes)
         
-        # Calcular acumulados anteriores para cada fila
-        acum_anteriores = []
-        totales_acum = []
-        for _, row in df.iterrows():
-            fecha_p = datetime.strptime(row["fecha"], "%Y-%m-%d").date()
-            es_h = "Art. 33" in row["motivo"]
-            ac_ant = get_acumulado_artigo(row["profesor"], row["motivo"], fecha_p, es_horas=es_h)
-            acum_anteriores.append(ac_ant)
-            try:
-                val_actual = float(row["horas"]) if es_h else 1.0
-            except (ValueError, TypeError):
-                val_actual = 0.0
-            totales_acum.append(ac_ant + val_actual)
-            
-        df["acumulado_anterior"] = acum_anteriores
-        df["total_acumulado"] = totales_acum
-        
-        st.dataframe(
-            df[["profesor", "fecha", "motivo", "horas", "acumulado_anterior", "total_acumulado", "observaciones"]],
-            use_container_width=True
-        )
+        # Asignación segura de acumulados (prioriza o gardado en BD, senón calcula)
+        if "acumulado_anterior" not in df.columns:
+            df["acumulado_anterior"] = 0.0
+        if "total_acumulado" not in df.columns:
+            df["total_acumulado"] = df["horas"]
 
+        # Copia para amosar na interface cos nomes de columnas limpos
+        df_display = df[[
+            "profesor", "fecha", "motivo", "horas", 
+            "acumulado_anterior", "total_acumulado", "observaciones"
+        ]].copy()
+        
+        df_display.columns = [
+            "Docente", "Data", "Artigo / Motivo", "Horas", 
+            "Acum. Anterior", "Total Acumulado", "Observacións"
+        ]
+        
+        st.dataframe(df_display, use_container_width=True)
+
+        # ---------------------------------------------------------------------
+        # SECCIÓN 1: XESTIÓN E ELIMINACIÓN DE REXISTROS
+        # ---------------------------------------------------------------------
         st.markdown("---")
         st.subheader("⚙️ Xestionar / Eliminar Rexistros")
         
-        # Opcions do selector
         opcions_registros = {
             f"ID {row['id']} - {row['profesor']} ({row['fecha']}) - {row['motivo']}": row['id']
             for _, row in df.iterrows()
@@ -628,35 +637,43 @@ elif menu == "📊 Resumo Mensual e Acumulados":
         id_para_eliminar = opcions_registros[falta_seleccionada]
         
         if st.button("🗑️ Eliminar Rexistro da Base de Datos", use_container_width=True):
-            # 1. Borrado directo en Supabase por clave primaria ID
-            supabase.table("partes").delete().eq("id", id_para_eliminar).execute()
-            
-            # 2. Borrado de toda a memoria caché de Streamlit e limpeza da función de saldos
-            st.cache_data.clear()
-            if "get_acumulado_artigo" in globals():
-                get_acumulado_artigo.clear()
-            
-            # 3. Incremento da versión do formulario para reiniciar a Pestana 1
-            if "form_version" in st.session_state:
-                st.session_state.form_version += 1
-            
-            # 4. Mensaxe de éxito e reinicio inmediato da interface
-            st.success("✅ Rexistro eliminado correctamente de Supabase.")
-            st.rerun()
+            try:
+                # 1. Borrado directo en Supabase por clave primaria ID
+                supabase.table("partes").delete().eq("id", id_para_eliminar).execute()
+                
+                # 2. Borrado da memoria caché de Streamlit
+                st.cache_data.clear()
+                
+                # 3. Incremento da versión para resetear os formularios
+                if "form_version" in st.session_state:
+                    st.session_state.form_version += 1
+                
+                st.success("✅ Rexistro eliminado correctamente de Supabase.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Ocorreu un erro ao eliminar o rexistro: {e}")
         
+        # ---------------------------------------------------------------------
+        # SECCIÓN 2: EXPORTACIÓN DE INFORMES OFICIAIS
+        # ---------------------------------------------------------------------
         st.markdown("---")
-        st.subheader("📄 Exportación de Informes Oficials")
+        st.subheader("📄 Exportación de Informes Oficiais")
         
-        pdf_bytes = generar_pdf_mensual(mes_sel, ano_sel, df)
-        st.download_button(
-            label="📥 Descargar PDF Mensual para Inspección / Xefatura Territorial",
-            data=pdf_bytes,
-            file_name=f"Parte_Mensual_Faltas_{mes_sel}_{ano_sel}_CMUS_Xan_Viano.pdf",
-            mime="application/pdf"
-        )
+        try:
+            pdf_bytes = generar_pdf_mensual(mes_sel_idx, ano_sel, df)
+            
+            st.download_button(
+                label=f"📥 Descargar PDF Mensual de {meses_gal[mes_sel_idx-1]} {ano_sel}",
+                data=pdf_bytes,
+                file_name=f"Parte_Mensual_Faltas_{meses_gal[mes_sel_idx-1]}_{ano_sel}_CMUS_Xan_Viano.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.error(f"Non se puido xerar o informe PDF: {e}")
+            
     else:
-        st.info("Non hai faltas rexistradas no mes seleccionado.")
-
+        st.info(f"Non hai faltas rexistradas en **{meses_gal[mes_sel_idx-1]} de {ano_sel}**.")
 # -----------------------------------------------------------------------------
 # PESTANA 3: PROFESORES E HORARIOS
 # -----------------------------------------------------------------------------
