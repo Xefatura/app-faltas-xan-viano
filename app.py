@@ -601,7 +601,7 @@ if menu == "📋 Rexistro de Ausencia":
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # -------------------------------------------------------------------------
+   # -------------------------------------------------------------------------
     # BOTÓN ÚNICO DE GARDADO EN SUPABASE
     # -------------------------------------------------------------------------
     if st.button("💾 Gardar Rexistro de Ausencia", use_container_width=True, type="primary"):
@@ -625,7 +625,7 @@ if menu == "📋 Rexistro de Ausencia":
                     st.cache_data.clear()
                     st.session_state.form_version += 1
                     st.success(f"✅ Ausencia rexistrada e gardada correctamente para **{docente_sel}**!")
-                    st.rerun()
+                    st.balloons()
                 else:
                     st.error("Erro ao gardar os datos en Supabase.")
             except Exception as e:
