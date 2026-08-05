@@ -257,8 +257,8 @@ def generar_pdf_mensual(mes_num, ano_num, df_partes):
                 str(row.get("fecha", "")),
                 str(row.get("motivo", ""))[:30],
                 str(row.get("horas", "")),
-                str(row.get("acumulado_anterior", "0")),
-                str(row.get("total_acumulado", "0"))
+                str(row.get("acumulado_anterior", "0.0")),
+                str(row.get("total_acumulado", "0.0"))
             ])
             
         t = Table(data, colWidths=[120, 65, 150, 60, 65, 60])
