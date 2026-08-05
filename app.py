@@ -505,11 +505,6 @@ if menu == "📋 Rexistro de Ausencia":
         st.stop()
         
     lista_profes = [p["nombre"] for p in profesores_data]
-    
-    # Control de versión para reiniciar os widgets sen erro
-    if "form_version" not in st.session_state:
-        st.session_state.form_version = 0
-
     version = st.session_state.form_version
 
     col1, col2 = st.columns(2)
@@ -623,7 +618,7 @@ if menu == "📋 Rexistro de Ausencia":
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-   # -------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # BOTÓN ÚNICO DE GARDADO EN SUPABASE
     # -------------------------------------------------------------------------
     if st.button("💾 Gardar Rexistro de Ausencia", use_container_width=True, type="primary"):
