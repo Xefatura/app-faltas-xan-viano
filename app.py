@@ -204,13 +204,18 @@ if not st.session_state.authenticated:
         pass_input = st.text_input("Contrasinal", type="password", help="Contrasinal de seguridade.")
         
         if st.button("Iniciar Sesión", use_container_width=True):
-            if user_input == st.secrets["APP_USER"] and pass_input == st.secrets["APP_PASSWORD"]:
+            # Obtención segura dos secretos
+            correct_user = st.secrets.get("APP_USER", "admin")
+            correct_pass = st.secrets.get("APP_PASSWORD", "admin")
+            
+            if user_input == correct_user and pass_input == correct_pass:
                 st.session_state.authenticated = True
                 st.rerun()
             else:
                 st.error("Usuario ou contrasinal incorrectos.")
     
-    st.stop()
+    st.stop()  # Impide que se cargue a barra lateral e o resto da app sen validar
+    
 # -----------------------------------------------------------------------------
 # DICCIONARIO DE ARTIGOS E NORMATIVA
 # -----------------------------------------------------------------------------
