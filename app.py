@@ -175,7 +175,7 @@ if not st.session_state.authenticated:
 # 4. FUNCIÓNS DE CONSULTA A BASE DE DATOS
 def get_profesores_list():
     try:
-        res = supabase.table("profesores").select("*").order("nombre").execute()
+        res = supabase.table("profesores".strip()).select("*").order("nombre").execute()
         if res and hasattr(res, 'data') and len(res.data) > 0:
             return res.data
         return [{"id": 0, "nombre": "Docente de Proba"}]
@@ -185,7 +185,7 @@ def get_profesores_list():
 def get_acumulado_artigo(docente_nombre: str, artigo: str, fecha_limite, es_horas: bool = True):
     try:
         fecha_str = fecha_limite.strftime("%Y-%m-%d") if hasattr(fecha_limite, "strftime") else str(fecha_limite)
-        res = supabase.table("partes").select("*")\
+        res = supabase.table("partes".strip()).select("*")\
             .eq("profesor", docente_nombre)\
             .eq("motivo", artigo)\
             .lt("fecha", fecha_str)\
@@ -272,7 +272,7 @@ def generar_pdf_mensual(mes_num, ano_num, df_partes):
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#00529B")),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0,0), (-1,0), 8),
+            ('FONTSIZE', (0,0), (_,0), 8),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#CBD5E1")),
             ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
             ('FONTSIZE', (0,1), (-1,-1), 8),
